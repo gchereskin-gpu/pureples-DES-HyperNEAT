@@ -5,12 +5,15 @@ fitness_criterion     = max
 fitness_threshold     = 0.975
 pop_size              = 150
 reset_on_extinction   = False
+no_fitness_termination= False
 
 [DefaultGenome]
 # node activation options
 activation_default      = tanh
 activation_mutate_rate  = 0.5
 activation_options      = gauss sin tanh
+single_structural_mutation = False
+structural_mutation_surer = default
 
 # node aggregation options
 aggregation_default     = sum
@@ -25,6 +28,7 @@ bias_min_value          = -30.0
 bias_mutate_power       = 0.5
 bias_mutate_rate        = 0.7
 bias_replace_rate       = 0.1
+bias_init_type          = gaussian
 
 # genome compatibility options
 compatibility_disjoint_coefficient = 1.0
@@ -58,6 +62,7 @@ response_min_value      = -30.0
 response_mutate_power   = 0.0
 response_mutate_rate    = 0.0
 response_replace_rate   = 0.0
+response_init_type      = gaussian
 
 # connection weight options
 weight_init_mean        = 0.0
@@ -67,6 +72,9 @@ weight_min_value        = -30
 weight_mutate_power     = 0.5
 weight_mutate_rate      = 0.8
 weight_replace_rate     = 0.1
+weight_init_type        = gaussian
+enabled_rate_to_true_add = 0.0
+enabled_rate_to_false_add = 0.0
 
 [DefaultSpeciesSet]
 compatibility_threshold = 3.0
@@ -79,3 +87,4 @@ species_elitism      = 15
 [DefaultReproduction]
 elitism            = 15
 survival_threshold = 0.2
+min_species_size   = 1
