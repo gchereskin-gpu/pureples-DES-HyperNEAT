@@ -35,24 +35,26 @@ def run_es(gens, env, max_steps, config, params, substrate, max_trials=100, outp
             fitnesses = []
 
             for _ in range(trials):
-                ob = env.reset()
+                ob = env.reset()[0]
                 net.reset()
 
                 total_reward = 0
-
+                done = False
+                
                 for _ in range(max_steps):
                     for _ in range(network.activations):
                         o = net.activate(ob)
-
+                    
                     action = np.argmax(o)
-                    ob, reward, done, _ = env.step(action)
+                    ob, reward, terminated, truncated, _ = env.step(action)
+                    done = terminated or truncated
                     total_reward += reward
                     if done:
                         break
-
-                fitnesses.append(total_reward)
-
-            g.fitness = np.array(fitnesses).mean()
+                    
+                    fitnesses.append(total_reward)
+                
+                g.fitness = np.array(fitnesses).mean()
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()
