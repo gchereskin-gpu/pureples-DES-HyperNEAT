@@ -1,5 +1,5 @@
 """
-All logic concerning ES-HyperNEAT resides here.
+All logic concerning DES-HyperNEAT resides here.
 """
 import copy
 import neat
