@@ -9,7 +9,7 @@ import neat
 import neat.nn
 from pureples.shared.substrate import Substrate
 from pureples.shared.visualize import draw_net
-from pureples.des_hyperneat import ESNetwork
+from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
 VERSION = "S"
@@ -54,7 +54,7 @@ def eval_fitness(genomes, config):
     """
     for _, genome in genomes:
         cppn = neat.nn.FeedForwardNetwork.create(genome, config)
-        network = ESNetwork(SUBSTRATE, cppn, DYNAMIC_PARAMS)
+        network = DESNetwork(SUBSTRATE, cppn, DYNAMIC_PARAMS)
         net = network.create_phenotype_network()
 
         sum_square_error = 0.0
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # Verify network output against training data.
     print('\nOutput:')
     CPPN = neat.nn.FeedForwardNetwork.create(WINNER, CONFIG)
-    NETWORK = ESNetwork(SUBSTRATE, CPPN, DYNAMIC_PARAMS)
+    NETWORK = DESNetwork(SUBSTRATE, CPPN, DYNAMIC_PARAMS)
     # This will also draw winner_net.
     WINNER_NET = NETWORK.create_phenotype_network(
         filename=f'pureples/experiments/xor/des_hyperneat_xor_{VERSION_TEXT}_winner.png')

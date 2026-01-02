@@ -8,7 +8,7 @@ from pureples.hyperneat.hyperneat import query_cppn
 from pureples.shared.visualize import draw_es
 
 
-class ESNetwork:
+class DESNetwork:
     """
     The evolvable substrate network.
     """
@@ -53,7 +53,7 @@ class ESNetwork:
         coords_to_id = dict(zip(coordinates, indices))
 
         # Where the magic happens.
-        hidden_nodes, connections = self.es_hyperneat()
+        hidden_nodes, connections = self.des_hyperneat()
 
         # Map hidden coordinates to their IDs.
         for x, y in hidden_nodes:
@@ -171,7 +171,7 @@ class ESNetwork:
                     if not c.w == 0.0 and con.y1 < con.y2 and not (con.x1 == con.x2 and con.y1 == con.y2):
                         self.connections.add(con)
 
-    def es_hyperneat(self):
+    def des_hyperneat(self):
         """
         Explores the hidden nodes and their connections.
         """
