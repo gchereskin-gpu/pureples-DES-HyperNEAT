@@ -9,7 +9,7 @@ import neat
 import neat.nn
 from pureples.shared.substrate import Substrate
 from pureples.shared.visualize import draw_net
-from des_hyperneat.des_hyperneat import ESNetwork
+from pureples.des_hyperneat import ESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
 VERSION = "S"
