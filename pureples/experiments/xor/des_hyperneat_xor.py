@@ -42,7 +42,7 @@ def params(version):
 DYNAMIC_PARAMS = params(VERSION)
 
 # Config for CPPN.
-CONFIG = neat.config.Config(neat.genome.DefaultGenome, neat.reproduction.DefaultReproduction,
+CONFIG = neat.config.Config(neat.genome.DesGenome, neat.reproduction.DesReproduction,
                             neat.species.DefaultSpeciesSet, neat.stagnation.DefaultStagnation,
                             'pureples/experiments/xor/config_cppn_xor')
 

@@ -4,7 +4,7 @@ All logic concerning DES-HyperNEAT resides here.
 import copy
 import neat
 import numpy as np
-from pureples.hyperneat.hyperneat import query_cppn
+from pureples.hyperneat.hyperneat import query_cppn_des
 from pureples.shared.visualize import draw_es
 
 
@@ -33,50 +33,55 @@ class DESNetwork:
         """
         Create a RecurrentNetwork using the ES-HyperNEAT approach.
         """
+
         input_coordinates = self.substrate.input_coordinates
         output_coordinates = self.substrate.output_coordinates
+        
+        # For each list of the branch nodes in each branch, create a phenotype network.
+        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * len(output_coordinates)):
+            branch_nodes = list(branch)
 
-        input_nodes = list(range(len(input_coordinates)))
-        output_nodes = list(range(len(input_nodes), len(
-            input_nodes)+len(output_coordinates)))
-        hidden_idx = len(input_coordinates)+len(output_coordinates)
+            input_nodes = list(range(len(input_coordinates)))
+            output_nodes = list(range(len(input_nodes), len(
+                input_nodes)+len(output_coordinates)))
+            hidden_idx = len(input_coordinates)+len(output_coordinates)
 
-        coordinates, indices, draw_connections, node_evals = [], [], [], []
-        nodes = {}
+            coordinates, indices, draw_connections, node_evals = [], [], [], []
+            nodes = {}
 
-        coordinates.extend(input_coordinates)
-        coordinates.extend(output_coordinates)
-        indices.extend(input_nodes)
-        indices.extend(output_nodes)
+            coordinates.extend(input_coordinates)
+            coordinates.extend(output_coordinates)
+            indices.extend(input_nodes)
+            indices.extend(output_nodes)
 
-        # Map input and output coordinates to their IDs.
-        coords_to_id = dict(zip(coordinates, indices))
+            # Map input and output coordinates to their IDs.
+            coords_to_id = dict(zip(coordinates, indices))
 
-        # Where the magic happens.
-        hidden_nodes, connections = self.des_hyperneat()
+            # Where the magic happens.
+            hidden_nodes, connections = self.des_hyperneat(branch_nodes)
+        
+            # Map hidden coordinates to their IDs.
+            for x, y in hidden_nodes:
+                coords_to_id[x, y] = hidden_idx
+                hidden_idx += 1
 
-        # Map hidden coordinates to their IDs.
-        for x, y in hidden_nodes:
-            coords_to_id[x, y] = hidden_idx
-            hidden_idx += 1
+            # For every coordinate:
+            # Check the connections and create a node with corresponding connections if appropriate.
+            for (x, y), idx in coords_to_id.items():
+                for c in connections:
+                    if c.x2 == x and c.y2 == y:
+                        draw_connections.append(c)
+                        if idx in nodes:
+                            initial = nodes[idx]
+                            initial.append((coords_to_id[c.x1, c.y1], c.weight))
+                            nodes[idx] = initial
+                        else:
+                            nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight)]
 
-        # For every coordinate:
-        # Check the connections and create a node with corresponding connections if appropriate.
-        for (x, y), idx in coords_to_id.items():
-            for c in connections:
-                if c.x2 == x and c.y2 == y:
-                    draw_connections.append(c)
-                    if idx in nodes:
-                        initial = nodes[idx]
-                        initial.append((coords_to_id[c.x1, c.y1], c.weight))
-                        nodes[idx] = initial
-                    else:
-                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight)]
-
-        # Combine the indices with the connections/links;
-        # forming node_evals used by the RecurrentNetwork.
-        for idx, links in nodes.items():
-            node_evals.append((idx, self.activation, sum, 0.0, 1.0, links))
+            # Combine the indices with the connections/links;
+            # forming node_evals used by the RecurrentNetwork.
+            for idx, links in nodes.items():
+                node_evals.append((idx, self.activation, sum, 0.0, 1.0, links))
 
         # Visualize the network?
         if filename is not None:
@@ -85,6 +90,7 @@ class DESNetwork:
         # This is actually a feedforward network.
         return neat.nn.RecurrentNetwork(input_nodes, output_nodes, node_evals)
 
+        # The hidden node ids need to continue through each branch's nodes and connections.
     @staticmethod
     def get_weights(p):
         """
@@ -104,13 +110,13 @@ class DESNetwork:
 
     def variance(self, p):
         """
-        Find the variance of a given QuadPoint.
+          the variance of a given QuadPoint.
         """
         if not p:
             return 0.0
         return np.var(self.get_weights(p))
 
-    def division_initialization(self, coord, outgoing):
+    def division_initialization(self, coord, outgoing, branch_nodes):
         """
         Initialize the quadtree by dividing it in appropriate quads.
         """
@@ -130,8 +136,8 @@ class DESNetwork:
                                 p.width/2.0, p.width/2.0, p.lvl + 1)
 
             for c in p.cs:
-                c.w = query_cppn(coord, (c.x, c.y), outgoing,
-                                 self.cppn, self.max_weight)
+                c.w = query_cppn_des(coord, (c.x, c.y), outgoing,
+                                 self.cppn, self.max_weight, branch_nodes)
 
             if (p.lvl < self.initial_depth) or (p.lvl < self.max_depth and self.variance(p)
                                                 > self.division_threshold):
@@ -140,7 +146,7 @@ class DESNetwork:
 
         return root
 
-    def pruning_extraction(self, coord, p, outgoing):
+    def pruning_extraction(self, coord, p, outgoing, branch_nodes):
         """
         Determines which connections to express - high variance = more connetions.
         """
@@ -148,16 +154,16 @@ class DESNetwork:
             d_left, d_right, d_top, d_bottom = None, None, None, None
 
             if self.variance(c) > self.variance_threshold:
-                self.pruning_extraction(coord, c, outgoing)
+                self.pruning_extraction(coord, c, outgoing, branch_nodes)
             else:
-                d_left = abs(c.w - query_cppn(coord, (c.x - p.width,
-                                                      c.y), outgoing, self.cppn, self.max_weight))
-                d_right = abs(c.w - query_cppn(coord, (c.x + p.width,
-                                                       c.y), outgoing, self.cppn, self.max_weight))
-                d_top = abs(c.w - query_cppn(coord, (c.x, c.y - p.width),
-                                             outgoing, self.cppn, self.max_weight))
-                d_bottom = abs(c.w - query_cppn(coord, (c.x, c.y +
-                                                        p.width), outgoing, self.cppn, self.max_weight))
+                d_left = abs(c.w - query_cppn_des(coord, (c.x - p.width,
+                                                      c.y), outgoing, self.cppn, self.max_weight, branch_nodes))
+                d_right = abs(c.w - query_cppn_des(coord, (c.x + p.width,
+                                                       c.y), outgoing, self.cppn, self.max_weight, branch_nodes))
+                d_top = abs(c.w - query_cppn_des(coord, (c.x, c.y - p.width),
+                                                        outgoing, self.cppn, self.max_weight, branch_nodes))
+                d_bottom = abs(c.w - query_cppn_des(coord, (c.x, c.y +
+                                                        p.width), outgoing, self.cppn, self.max_weight, branch_nodes))
 
                 con = None
                 if max(min(d_top, d_bottom), min(d_left, d_right)) > self.band_threshold:
@@ -171,7 +177,7 @@ class DESNetwork:
                     if not c.w == 0.0 and con.y1 < con.y2 and not (con.x1 == con.x2 and con.y1 == con.y2):
                         self.connections.add(con)
 
-    def des_hyperneat(self):
+    def des_hyperneat(self, branch_nodes):
         """
         Explores the hidden nodes and their connections.
         """
@@ -181,8 +187,8 @@ class DESNetwork:
         connections1, connections2, connections3 = set(), set(), set()
 
         for x, y in inputs:  # Explore from inputs.
-            root = self.division_initialization((x, y), True)
-            self.pruning_extraction((x, y), root, True)
+            root = self.division_initialization((x, y), True, branch_nodes)
+            self.pruning_extraction((x, y), root, True, branch_nodes)
             connections1 = connections1.union(self.connections)
             for c in connections1:
                 hidden_nodes.add((c.x2, c.y2))
@@ -192,8 +198,8 @@ class DESNetwork:
 
         for _ in range(self.iteration_level):  # Explore from hidden.
             for x, y in unexplored_hidden_nodes:
-                root = self.division_initialization((x, y), True)
-                self.pruning_extraction((x, y), root, True)
+                root = self.division_initialization((x, y), True, branch_nodes)
+                self.pruning_extraction((x, y), root, True, branch_nodes)
                 connections2 = connections2.union(self.connections)
                 for c in connections2:
                     hidden_nodes.add((c.x2, c.y2))
@@ -202,8 +208,8 @@ class DESNetwork:
             unexplored_hidden_nodes = hidden_nodes - unexplored_hidden_nodes
 
         for x, y in outputs:  # Explore to outputs.
-            root = self.division_initialization((x, y), False)
-            self.pruning_extraction((x, y), root, False)
+            root = self.division_initialization((x, y), False, branch_nodes)
+            self.pruning_extraction((x, y), root, False, branch_nodes)
             connections3 = connections3.union(self.connections)
             self.connections = set()
 
