@@ -37,51 +37,58 @@ class DESNetwork:
         input_coordinates = self.substrate.input_coordinates
         output_coordinates = self.substrate.output_coordinates
         
+        hidden_nodes = set(tuple())
+        connections = set()
+
+        input_nodes = list(range(len(input_coordinates)))
+        output_nodes = list(range(len(input_nodes), len(
+            input_nodes)+len(output_coordinates)))
+        hidden_idx = len(input_coordinates)+len(output_coordinates)
+
+        coordinates, indices, draw_connections, node_evals = [], [], [], []
+        nodes = {}
+
+        # Map input and output coordinates to their IDs.
+        coords_to_id = dict(zip(coordinates, indices))
+
+        coordinates.extend(input_coordinates)
+        coordinates.extend(output_coordinates)
+        indices.extend(input_nodes)
+        indices.extend(output_nodes)
+
         # For each list of the branch nodes in each branch, create a phenotype network.
         for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * len(output_coordinates)):
             branch_nodes = list(branch)
 
-            input_nodes = list(range(len(input_coordinates)))
-            output_nodes = list(range(len(input_nodes), len(
-                input_nodes)+len(output_coordinates)))
-            hidden_idx = len(input_coordinates)+len(output_coordinates)
-
-            coordinates, indices, draw_connections, node_evals = [], [], [], []
-            nodes = {}
-
-            coordinates.extend(input_coordinates)
-            coordinates.extend(output_coordinates)
-            indices.extend(input_nodes)
-            indices.extend(output_nodes)
-
-            # Map input and output coordinates to their IDs.
-            coords_to_id = dict(zip(coordinates, indices))
-
             # Where the magic happens.
-            hidden_nodes, connections = self.des_hyperneat(branch_nodes)
+            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes)
         
-            # Map hidden coordinates to their IDs.
-            for x, y in hidden_nodes:
-                coords_to_id[x, y] = hidden_idx
-                hidden_idx += 1
+            hidden_nodes = hidden_nodes.union(new_hidden_nodes)
+            connections = connections.union(new_connections)
 
-            # For every coordinate:
-            # Check the connections and create a node with corresponding connections if appropriate.
-            for (x, y), idx in coords_to_id.items():
-                for c in connections:
-                    if c.x2 == x and c.y2 == y:
-                        draw_connections.append(c)
-                        if idx in nodes:
-                            initial = nodes[idx]
-                            initial.append((coords_to_id[c.x1, c.y1], c.weight))
-                            nodes[idx] = initial
-                        else:
-                            nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight)]
 
-            # Combine the indices with the connections/links;
-            # forming node_evals used by the RecurrentNetwork.
-            for idx, links in nodes.items():
-                node_evals.append((idx, self.activation, sum, 0.0, 1.0, links))
+        # Map hidden coordinates to their IDs.
+        for x, y in hidden_nodes:
+            coords_to_id[x, y] = hidden_idx
+            hidden_idx += 1
+
+        # For every coordinate:
+        # Check the connections and create a node with corresponding connections if appropriate.
+        for (x, y), idx in coords_to_id.items():
+            for c in connections:
+                if c.x2 == x and c.y2 == y:
+                    draw_connections.append(c)
+                    if idx in nodes:
+                        initial = nodes[idx]
+                        initial.append((coords_to_id[c.x1, c.y1], c.weight))
+                        nodes[idx] = initial
+                    else:
+                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight)]
+
+        # Combine the indices with the connections/links;
+        # forming node_evals used by the RecurrentNetwork.
+        for idx, links in nodes.items():
+            node_evals.append((idx, self.activation, sum, 0.0, 1.0, links))
 
         # Visualize the network?
         if filename is not None:
