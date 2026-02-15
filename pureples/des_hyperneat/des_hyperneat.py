@@ -144,7 +144,7 @@ class DESNetwork:
 
             for c in p.cs:
                 c.w = query_cppn_des(coord, (c.x, c.y), outgoing,
-                                 self.cppn, self.max_weight, branch_nodes)
+                                 self.cppn, branch_nodes, self.max_weight)
 
             if (p.lvl < self.initial_depth) or (p.lvl < self.max_depth and self.variance(p)
                                                 > self.division_threshold):
@@ -164,13 +164,13 @@ class DESNetwork:
                 self.pruning_extraction(coord, c, outgoing, branch_nodes)
             else:
                 d_left = abs(c.w - query_cppn_des(coord, (c.x - p.width,
-                                                      c.y), outgoing, self.cppn, self.max_weight, branch_nodes))
+                                                      c.y), outgoing, self.cppn, branch_nodes, self.max_weight))
                 d_right = abs(c.w - query_cppn_des(coord, (c.x + p.width,
-                                                       c.y), outgoing, self.cppn, self.max_weight, branch_nodes))
+                                                       c.y), outgoing, self.cppn, branch_nodes, self.max_weight))
                 d_top = abs(c.w - query_cppn_des(coord, (c.x, c.y - p.width),
-                                                        outgoing, self.cppn, self.max_weight, branch_nodes))
+                                                        outgoing, self.cppn, branch_nodes, self.max_weight))
                 d_bottom = abs(c.w - query_cppn_des(coord, (c.x, c.y +
-                                                        p.width), outgoing, self.cppn, self.max_weight, branch_nodes))
+                                                        p.width), outgoing, self.cppn, branch_nodes, self.max_weight))
 
                 con = None
                 if max(min(d_top, d_bottom), min(d_left, d_right)) > self.band_threshold:
