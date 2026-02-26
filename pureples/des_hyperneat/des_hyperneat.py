@@ -48,13 +48,13 @@ class DESNetwork:
         coordinates, indices, draw_connections, node_evals = [], [], [], []
         nodes = {}
 
-        # Map input and output coordinates to their IDs.
-        coords_to_id = dict(zip(coordinates, indices))
-
         coordinates.extend(input_coordinates)
         coordinates.extend(output_coordinates)
         indices.extend(input_nodes)
         indices.extend(output_nodes)
+
+        # Map input and output coordinates to their IDs.
+        coords_to_id = dict(zip(coordinates, indices))
 
         # For each list of the branch nodes in each branch, create a phenotype network.
         for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * len(output_coordinates)):

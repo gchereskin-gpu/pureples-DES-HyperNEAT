@@ -2,7 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+pureples/experiments/*/des_hyperneat_*_small_cppn
+pureples/experiments/*/des_hyperneat_*_small_cppn.pdf
+pureples/experiments/*/des_hyperneat_*_small_cppn.pkl
+pureples/experiments/*/des_hyperneat_*_small_winner.png
 pureples/experiments/*/es_hyperneat_*_small_cppn
 pureples/experiments/*/es_hyperneat_*_small_cppn.pdf
 pureples/experiments/*/es_hyperneat_*_small_cppn.pkl
