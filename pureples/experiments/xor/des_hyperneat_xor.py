@@ -42,7 +42,7 @@ def params(version):
 DYNAMIC_PARAMS = params(VERSION)
 
 # Config for CPPN.
-CONFIG = neat.config.Config(neat.genome.DefaultGenome, neat.reproduction.DefaultReproduction,
+CONFIG = neat.config.Config(neat.genome.DesGenome, neat.reproduction.DesReproduction,
                             neat.species.DefaultSpeciesSet, neat.stagnation.DefaultStagnation,
                             'pureples/experiments/xor/config_cppn_xor')
 
@@ -53,7 +53,7 @@ def eval_fitness(genomes, config):
     For each genome evaluate its fitness, in this case, as the mean squared error.
     """
     for _, genome in genomes:
-        cppn = neat.nn.FeedForwardNetwork.create(genome, config)
+        cppn = neat.nn.DesFeedForwardNetwork.create(genome, config)
         network = DESNetwork(SUBSTRATE, cppn, DYNAMIC_PARAMS)
         net = network.create_phenotype_network()
 
@@ -76,7 +76,7 @@ def run(gens, version):
     Create the population and run the XOR task by providing eval_fitness as the fitness function.
     Returns the winning genome and the statistics of the run.
     """
-    pop = neat.population.Population(CONFIG)
+    pop = neat.population.DesPopulation(CONFIG)
     stats = neat.statistics.StatisticsReporter()
     pop.add_reporter(stats)
     pop.add_reporter(neat.reporting.StdOutReporter(True))
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     # Verify network output against training data.
     print('\nOutput:')
-    CPPN = neat.nn.FeedForwardNetwork.create(WINNER, CONFIG)
+    CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = DESNetwork(SUBSTRATE, CPPN, DYNAMIC_PARAMS)
     # This will also draw winner_net.
     WINNER_NET = NETWORK.create_phenotype_network(
