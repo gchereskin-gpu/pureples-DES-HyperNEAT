@@ -123,6 +123,13 @@ compatibility_weight_coefficient   = 0.5
 conn_add_prob           = 0.5
 conn_delete_prob        = 0.5
 
+# branch options
+branch_add_prob         = 0.2
+is_branch_default       = False
+is_branch_mutate_rate   = 0.0
+is_branch_rate_to_true_add = 0.0
+is_branch_rate_to_false_add = 0.0
+
 # connection enable options
 enabled_default         = True
 enabled_mutate_rate     = 0.01
@@ -133,9 +140,6 @@ initial_connection      = full
 # node add/remove rates
 node_add_prob           = 0.2
 node_delete_prob        = 0.2
-
-# branch options
-branch_add_prob         = 0.2
 
 # network parameters
 num_hidden              = 0
@@ -151,6 +155,16 @@ response_mutate_power   = 0.0
 response_mutate_rate    = 0.0
 response_replace_rate   = 0.0
 response_init_type      = gaussian
+
+# scale factor options
+scale_init_mean          = 0.0
+scale_init_stdev         = 0.4
+scale_max_value          = 1.0
+scale_min_value          = -1.0
+scale_mutate_power       = 0.5
+scale_mutate_rate        = 0.7
+scale_replace_rate       = 0.1
+scale_init_type          = gaussian
 
 # connection weight options
 weight_init_mean        = 0.0

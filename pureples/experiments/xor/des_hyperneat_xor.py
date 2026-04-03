@@ -1,5 +1,5 @@
 """
-An experiment using a variable-sized ES-HyperNEAT network to perform the simple XOR task.
+An experiment using a variable-sized DES-HyperNEAT network to perform the simple XOR task.
 Fitness threshold set in config
 - by default very high to show the high possible accuracy of this library.
 """
@@ -27,7 +27,7 @@ SUBSTRATE = Substrate(INPUT_COORDINATES, OUTPUT_COORDINATES)
 
 def params(version):
     """
-    ES-HyperNEAT specific parameters.
+    DES-HyperNEAT specific parameters.
     """
     return {"initial_depth": 0 if version == "S" else 1 if version == "M" else 2,
             "max_depth": 1 if version == "S" else 2 if version == "M" else 3,
