@@ -4,7 +4,10 @@ Fitness threshold set in config
 - by default very high to show the high possible accuracy of this library.
 """
 
+from curses.ascii import SUB
 import pickle
+
+from cycler import V
 import neat
 import neat.nn
 from pureples.shared.substrate import Substrate
@@ -84,7 +87,7 @@ def run(gens, version):
     global DYNAMIC_PARAMS
     DYNAMIC_PARAMS = params(version)
 
-    winner = pop.run(eval_fitness, gens)
+    winner = pop.run(eval_fitness, gens, CONFIG, SUBSTRATE, DYNAMIC_PARAMS, VERSION_TEXT)
     print(f"des_hyperneat_xor_{VERSION_TEXT} done")
     return winner, stats
 

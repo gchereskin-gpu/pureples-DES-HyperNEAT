@@ -97,7 +97,7 @@ activation_default      = tanh
 activation_mutate_rate  = 0.5
 activation_options      = gauss sin tanh
 
-single_structural_mutation = False
+single_structural_mutation = True
 structural_mutation_surer = default
 
 # node aggregation options
