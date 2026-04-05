@@ -12,7 +12,7 @@ from pureples.shared.gym_runner import run_des
 from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "S"
+VERSION = "L"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 # Network coordinates and the resulting substrate.
@@ -64,6 +64,8 @@ if __name__ == '__main__':
 
     # Run! Only relevant to look at the winner.
     WINNER = run(100, ENVIRONMENT, VERSION)[0]
+
+    print(WINNER)
 
     # Save CPPN if wished reused and draw it + winner to file.
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)

@@ -4,7 +4,6 @@ Fitness threshold set in config
 - by default very high to show the high possible accuracy of this library.
 """
 
-#from curses.ascii import SUB
 import pickle
 
 from cycler import V
@@ -15,7 +14,7 @@ from pureples.shared.visualize import draw_net
 from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "S"
+VERSION = "L"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 # Network inputs and expected outputs.
