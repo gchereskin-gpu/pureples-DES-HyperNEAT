@@ -14,7 +14,7 @@ from pureples.shared.visualize import draw_net
 from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "L"
+VERSION = "S"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 # Network inputs and expected outputs.
