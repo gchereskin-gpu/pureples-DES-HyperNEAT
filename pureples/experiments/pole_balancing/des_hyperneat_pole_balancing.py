@@ -12,7 +12,7 @@ from pureples.shared.gym_runner import run_des
 from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "L"
+VERSION = "S"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 # Network coordinates and the resulting substrate.
