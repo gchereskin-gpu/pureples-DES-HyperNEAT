@@ -321,7 +321,7 @@ class AdaptiveDESNetwork:
 
     def create_phenotype_network(self, filename=None):
         """
-        Create an AdaptiveRecurrentNetwork using the DES-HyperNEAT approach.
+        Create an AdaptiveRecurrentNetwork using the Adaptive DES-HyperNEAT approach.
         """
 
         input_coordinates = self.substrate.input_coordinates
@@ -538,13 +538,16 @@ class AdaptiveDESNetwork:
 
         connections = connections1.union(connections2.union(connections3))
 
+        this_branch_genes = self.cppn.get_branch_genes()
+        this_branch_first_branch_node = branch_nodes[0]
+
         # add plasticity parameters to all connections based on the plasticity attributes of the branch node used to generate these connections
         for c in connections:
-            c.a = self.cppn.get_branch_genes()[branch_nodes][0].a
-            c.b = self.cppn.get_branch_genes()[branch_nodes][0].b
-            c.c = self.cppn.get_branch_genes()[branch_nodes][0].c
-            c.d = self.cppn.get_branch_genes()[branch_nodes][0].d
-            c.n = self.cppn.get_branch_genes()[branch_nodes][0].n
+            c.a = this_branch_genes[this_branch_first_branch_node].a
+            c.b = this_branch_genes[this_branch_first_branch_node].b
+            c.c = this_branch_genes[this_branch_first_branch_node].c
+            c.d = this_branch_genes[this_branch_first_branch_node].d
+            c.n = this_branch_genes[this_branch_first_branch_node].n
 
         return self.clean_net(connections)
 

@@ -9,6 +9,7 @@ import gymnasium as gym
 from pureples.shared.visualize import draw_net
 from pureples.shared.substrate import Substrate
 from pureples.shared.gym_runner import run_des
+from pureples.shared.gym_runner import run_adaptive_des
 from pureples.des_hyperneat import AdaptiveDESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
@@ -50,7 +51,7 @@ def run(gens, env, version):
     Run the pole balancing task using the Gym environment
     Returns the winning genome and the statistics of the run.
     """
-    winner, stats = run_des(gens, env, 500, CONFIG, params(version), SUBSTRATE)
+    winner, stats = run_adaptive_des(gens, env, 500, CONFIG, params(version), SUBSTRATE)
     print(f"adaptive_des_hyperneat_polebalancing_{VERSION_TEXT} done")
     return winner, stats
 

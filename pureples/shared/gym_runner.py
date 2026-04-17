@@ -7,6 +7,7 @@ import numpy as np
 from pureples.hyperneat.hyperneat import create_phenotype_network
 from pureples.es_hyperneat.es_hyperneat import ESNetwork
 from pureples.des_hyperneat import DESNetwork
+from pureples.des_hyperneat import AdaptiveDESNetwork
 
 
 def ini_pop(state, stats, config, output):
@@ -28,6 +29,65 @@ def ini_desPop(state, stats, config, output):
         pop.add_reporter(neat.reporting.StdOutReporter(True))
     pop.add_reporter(stats)
     return pop
+
+def run_adaptive_des(gens, env, max_steps, config, params, substrate, max_trials=0, output=True):
+    """
+    Generic OpenAI Gym runner for Adaptive DES-HyperNEAT.
+    """
+    trials = 1
+
+    def eval_fitness(genomes, config):
+
+        for _, g in genomes:
+            cppn = neat.nn.DesFeedForwardNetwork.create(g, config)
+            network = AdaptiveDESNetwork(substrate, cppn, params)
+            net = network.create_phenotype_network()
+
+            fitnesses = []
+
+            for _ in range(trials):
+                ob = env.reset()[0]
+                net.reset()
+
+                total_reward = 0
+                done = False
+                
+                for _ in range(max_steps):
+                    for _ in range(network.activations):
+                        o = net.activate(ob)
+                    
+                    action = np.argmax(o)
+                    ob, reward, terminated, truncated, _ = env.step(action)
+                    done = terminated or truncated
+                    total_reward += reward
+                    if done:
+                        break
+                    
+                    fitnesses.append(total_reward)
+                
+                g.fitness = np.array(fitnesses).mean()
+
+    # Create population and train the network. Return winner of network running 100 episodes.
+    stats_one = neat.statistics.StatisticsReporter()
+    pop = ini_desPop(None, stats_one, config, output)
+    winner = pop.run(eval_fitness, gens)
+
+    return winner, (stats_one,)
+
+    stats_ten = neat.statistics.StatisticsReporter()
+    pop = ini_desPop((pop.population, pop.species, 0), stats_ten, config, output)
+    trials = 10
+    winner_ten = pop.run(eval_fitness, gens)
+
+    if max_trials == 0:
+        return winner_ten, (stats_one, stats_ten)
+
+    stats_hundred = neat.statistics.StatisticsReporter()
+    pop = ini_desPop((pop.population, pop.species, 0),
+                  stats_hundred, config, output)
+    trials = max_trials
+    winner_hundred = pop.run(eval_fitness, gens)
+    return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
 def run_des(gens, env, max_steps, config, params, substrate, max_trials=0, output=True):
     """
