@@ -5,6 +5,7 @@ Varying visualisation tools.
 import pickle
 import graphviz
 import matplotlib.pyplot as plt
+import colorsys
 
 
 def draw_net(net, filename=None, node_names={}, node_colors={}):
@@ -43,7 +44,7 @@ def draw_net(net, filename=None, node_names={}, node_colors={}):
             b = node_names.get(node_input, str(node_input))
             style = 'solid'
             color = 'green' if w > 0.0 else 'red'
-            width = str(0.1 + abs(w / 5.0))
+            width = str(0.1 + abs(w / 2.0))
             dot.edge(a, b, _attributes={
                      'style': style, 'color': color, 'penwidth': width})
 
@@ -113,3 +114,31 @@ def draw_es(id_to_coords, connections, filename):
 
     plt.grid()
     fig.savefig(filename)
+
+def draw_adaptive_des(id_to_coords, connections, filename):
+    """
+    Draw the net created by Adaptive DES-HyperNEAT
+    """
+    fig = plt.figure()
+    plt.axis([-1.1, 1.1, -1.1, 1.1])
+    fig.add_subplot(111)
+
+    for c in connections:
+        plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.00, head_length=0.0,
+                  fc=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
+                  ec=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
+                  length_includes_head=True)
+
+    for (coord, _) in id_to_coords.items():
+        plt.plot(coord[0], coord[1], marker='o', markersize=8.0, color='grey')
+
+    plt.grid()
+    fig.savefig(filename)
+
+def hue_to_rgb(x):
+    """
+    Convert a hue value (between -1 and 1) to an RGB list of values between 0 and 1.
+    """
+    h = (x + 1) / 2
+    r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
+    return [r, g, b]

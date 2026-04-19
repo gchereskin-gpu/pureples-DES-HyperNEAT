@@ -72,8 +72,8 @@ if __name__ == '__main__':
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = AdaptiveDESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(
-        filename=f"pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/pole_balancing/adaptive_des_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/pole_balancing/adaptive_des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/pole_balancing/adaptive_des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)

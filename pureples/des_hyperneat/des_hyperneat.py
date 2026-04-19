@@ -6,7 +6,7 @@ from re import A, S
 import neat
 import numpy as np
 from pureples.hyperneat.hyperneat import query_cppn_des
-from pureples.shared.visualize import draw_es
+from pureples.shared.visualize import draw_es, draw_adaptive_des
 
 
 class DESNetwork:
@@ -347,7 +347,7 @@ class AdaptiveDESNetwork:
         coords_to_id = dict(zip(coordinates, indices))
 
         # For each list of the branch nodes in each branch, create a phenotype network.
-        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * len(output_coordinates)):
+        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * 1): # TODO: change "1" to the variable for the number of outputs in each branch!!!!
             branch_nodes = list(branch)
 
             # Where the magic happens.
@@ -371,10 +371,10 @@ class AdaptiveDESNetwork:
                     draw_connections.append(c)
                     if idx in nodes:
                         initial = nodes[idx]
-                        initial.append((coords_to_id[c.x1, c.y1], c.weight))
+                        initial.append((coords_to_id[c.x1, c.y1], c.weight, c.a, c.b, c.c, c.d, c.n))
                         nodes[idx] = initial
                     else:
-                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight)]
+                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight, c.a, c.b, c.c, c.d, c.n)]
 
         # Combine the indices with the connections/links;
         # forming node_evals used by the AdaptiveRecurrentNetwork.
@@ -383,7 +383,7 @@ class AdaptiveDESNetwork:
 
         # Visualize the network?
         if filename is not None:
-            draw_es(coords_to_id, draw_connections, filename)
+            draw_adaptive_des(coords_to_id, draw_connections, filename)
 
         # This is actually a feedforward network.
         return neat.nn.AdaptiveRecurrentNetwork(input_nodes, output_nodes, node_evals)
