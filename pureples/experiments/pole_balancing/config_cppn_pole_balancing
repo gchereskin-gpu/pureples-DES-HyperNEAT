@@ -3,7 +3,7 @@
 [NEAT]
 fitness_criterion     = max
 fitness_threshold     = 230
-pop_size              = 25
+pop_size              = 50
 reset_on_extinction   = False
 no_fitness_termination = False
 
@@ -240,7 +240,7 @@ activation_default      = tanh
 activation_mutate_rate  = 0.5
 activation_options      = gauss sin tanh
 
-single_structural_mutation = False
+single_structural_mutation = True
 structural_mutation_surer = default
 
 enabled_rate_to_true_add = 0.0
@@ -270,7 +270,7 @@ conn_add_prob           = 0.5
 conn_delete_prob        = 0.5
 
 # branch options
-branch_add_prob         = 0.075
+branch_add_prob         = 0.05
 is_branch_default       = False
 is_branch_mutate_rate   = 0.0
 is_branch_rate_to_true_add = 0.0
@@ -284,7 +284,7 @@ feed_forward            = True
 initial_connection      = full
 
 # node add/remove rates
-node_add_prob           = 0.2
+node_add_prob           = 0.15
 node_delete_prob        = 0.2
 
 # network parameters

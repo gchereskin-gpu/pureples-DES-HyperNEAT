@@ -128,6 +128,12 @@ def draw_adaptive_des(id_to_coords, connections, filename):
                   fc=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
                   ec=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
                   length_includes_head=True)
+        
+    # for c in connections:
+    #     plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.00, head_length=0.0,
+    #               fc=(hue_to_rgb(c.weight)[0], hue_to_rgb(c.weight)[1], hue_to_rgb(c.weight)[2]), 
+    #               ec=(hue_to_rgb(c.weight)[0], hue_to_rgb(c.weight)[1], hue_to_rgb(c.weight)[2]), 
+    #               length_includes_head=True)
 
     for (coord, _) in id_to_coords.items():
         plt.plot(coord[0], coord[1], marker='o', markersize=8.0, color='grey')
