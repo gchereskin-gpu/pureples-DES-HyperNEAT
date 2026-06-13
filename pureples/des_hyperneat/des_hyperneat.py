@@ -57,16 +57,20 @@ class DESNetwork:
         # Map input and output coordinates to their IDs.
         coords_to_id = dict(zip(coordinates, indices))
 
+        branch_id = 0 # Keep track of the branch ID
+
         # For each list of the branch nodes in each branch, create a phenotype network.
         for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * len(output_coordinates)):
             branch_nodes = list(branch)
 
             # Where the magic happens.
-            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes)
+            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes, branch_id)
 
             connections = self.merge_branch_outputs(connections, new_connections)
 
             hidden_nodes = hidden_nodes.union(new_hidden_nodes)
+            
+            branch_id += 1
 
 
         # Map hidden coordinates to their IDs.
@@ -214,7 +218,7 @@ class DESNetwork:
                     if not c.w == 0.0 and con.y1 < con.y2 and not (con.x1 == con.x2 and con.y1 == con.y2):
                         self.connections.add(con)
 
-    def des_hyperneat(self, branch_nodes):
+    def des_hyperneat(self, branch_nodes, branch_id):
         """
         Explores the hidden nodes and their connections.
         """
@@ -251,6 +255,9 @@ class DESNetwork:
             self.connections = set()
 
         connections = connections1.union(connections2.union(connections3))
+
+        for c in connections:
+            c.branch_id = branch_id
 
         return self.clean_net(connections)
 
@@ -349,17 +356,20 @@ class AdaptiveDESNetwork:
         # Map input and output coordinates to their IDs.
         coords_to_id = dict(zip(coordinates, indices))
 
+        branch_id = 0.0 # Keep track of the branch ID
+
         # For each list of the branch nodes in each branch, create a phenotype network.
         for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * 1): # TODO: change "1" to the variable for the number of outputs in each branch!!!!
             branch_nodes = list(branch)
 
             # Where the magic happens.
-            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes)
+            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes, branch_id)
 
             connections = self.merge_branch_outputs(connections, new_connections)
 
             hidden_nodes = hidden_nodes.union(new_hidden_nodes)
 
+            branch_id += 1.0
 
         # Map hidden coordinates to their IDs.
         for x, y in hidden_nodes:
@@ -374,10 +384,10 @@ class AdaptiveDESNetwork:
                     draw_connections.append(c)
                     if idx in nodes:
                         initial = nodes[idx]
-                        initial.append((coords_to_id[c.x1, c.y1], c.weight, c.a, c.b, c.c, c.d, c.n))
+                        initial.append((coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n))
                         nodes[idx] = initial
                     else:
-                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight, c.a, c.b, c.c, c.d, c.n)]
+                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n)]
 
         # Combine the indices with the connections/links;
         # forming node_evals used by the AdaptiveRecurrentNetwork.
@@ -506,7 +516,7 @@ class AdaptiveDESNetwork:
                     if not c.w == 0.0 and con.y1 < con.y2 and not (con.x1 == con.x2 and con.y1 == con.y2):
                         self.connections.add(con)
     
-    def des_hyperneat(self, branch_nodes):
+    def des_hyperneat(self, branch_nodes, branch_id):
         """
         Explores the hidden nodes and their connections.
         """
@@ -554,6 +564,7 @@ class AdaptiveDESNetwork:
             c.c = this_branch_genes[this_branch_first_branch_node].c
             c.d = this_branch_genes[this_branch_first_branch_node].d
             c.n = this_branch_genes[this_branch_first_branch_node].n
+            c.branch_id = branch_id
 
         return self.clean_net(connections)
 

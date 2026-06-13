@@ -28,3 +28,12 @@ TODO:
 
 
 6/11: 11:45 - 1:30
+
+DoNow:
+
+
+Where in the code are the branch_id's all set to 0.0?
+
+I think I added the branch_id attr to the CPPN nodes, not the phenotype ANN connections
+
+add branch # attribute to all connections storing what branch produced them

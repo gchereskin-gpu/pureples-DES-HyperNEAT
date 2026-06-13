@@ -123,10 +123,13 @@ def draw_adaptive_des(id_to_coords, connections, filename):
     plt.axis([-1.1, 1.1, -1.1, 1.1])
     fig.add_subplot(111)
 
+    # find the number of branches
+    num_branches = max(c.branch_id for c in connections) + 1
+
     for c in connections:
-        plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.00, head_length=0.0,
-                  fc=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
-                  ec=(hue_to_rgb(c.n)[0], hue_to_rgb(c.n)[1], hue_to_rgb(c.n)[2]), 
+        plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.01, head_length=0.02,
+                  fc=hue_to_rgb(c.branch_id/num_branches),
+                  ec=hue_to_rgb(c.branch_id/num_branches),
                   length_includes_head=True)
         
     # for c in connections:
@@ -141,10 +144,9 @@ def draw_adaptive_des(id_to_coords, connections, filename):
     plt.grid()
     fig.savefig(filename)
 
-def hue_to_rgb(x):
+def hue_to_rgb(h):
     """
-    Convert a hue value (between -1 and 1) to an RGB list of values between 0 and 1.
+    Convert a hue value (between 0 and 1) to an RGB list of values between 0 and 1.
     """
-    h = (x + 1) / 2
     r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
-    return [r, g, b]
+    return (r, g, b)
