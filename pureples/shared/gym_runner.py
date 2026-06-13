@@ -41,7 +41,7 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, max_trials
         for _, g in genomes:
             cppn = neat.nn.DesFeedForwardNetwork.create(g, config)
             network = AdaptiveDESNetwork(substrate, cppn, params)
-            net = network.create_phenotype_network()
+            net = network.create_phenotype_network(config)
 
             fitnesses = []
 

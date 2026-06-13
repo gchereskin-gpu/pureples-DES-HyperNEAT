@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # Save CPPN if wished reused and draw it + winner to file.
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = AdaptiveDESNetwork(SUBSTRATE, CPPN, params(VERSION))
-    NET = NETWORK.create_phenotype_network(
+    NET = NETWORK.create_phenotype_network(CONFIG, 
         filename=f"pureples/experiments/pole_balancing/adaptive_des_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
     draw_net(
         CPPN, filename=f"pureples/experiments/pole_balancing/adaptive_des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")

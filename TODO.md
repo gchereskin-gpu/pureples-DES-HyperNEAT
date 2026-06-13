@@ -32,6 +32,12 @@ TODO:
 DoNow:
 
 
+Add a mutate delete branch and differentiate from mutate delete node methods in genome.py
+
+check if branches have 2 nodes each
+
+make des_hyperneat's create_phenotype_network function consider the number of nodes in each branch when generating ANNs
+
 Where in the code are the branch_id's all set to 0.0?
 
 I think I added the branch_id attr to the CPPN nodes, not the phenotype ANN connections

@@ -329,7 +329,7 @@ class AdaptiveDESNetwork:
         activation_functions = neat.activations.ActivationFunctionSet()
         self.activation = activation_functions.get(params["activation"])
 
-    def create_phenotype_network(self, filename=None):
+    def create_phenotype_network(self, config, filename=None):
         """
         Create an AdaptiveRecurrentNetwork using the Adaptive DES-HyperNEAT approach.
         """
@@ -359,7 +359,7 @@ class AdaptiveDESNetwork:
         branch_id = 0.0 # Keep track of the branch ID
 
         # For each list of the branch nodes in each branch, create a phenotype network.
-        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * 1): # TODO: change "1" to the variable for the number of outputs in each branch!!!!
+        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * config.genome_config.num_outputs): # TODO: change "1" to the variable for the number of outputs in each branch!!!!
             branch_nodes = list(branch)
 
             # Where the magic happens.
