@@ -338,7 +338,8 @@ class AdaptiveDESNetwork:
         output_coordinates = self.substrate.output_coordinates
         
         hidden_nodes = set(tuple())
-        connections = set()
+        std_conns = set()
+        mod_conns = {}
 
         input_nodes = list(range(len(input_coordinates)))
         output_nodes = list(range(len(input_nodes), len(
@@ -359,17 +360,23 @@ class AdaptiveDESNetwork:
         branch_id = 0.0 # Keep track of the branch ID
 
         # For each list of the branch nodes in each branch, create a phenotype network.
-        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * config.genome_config.num_outputs): # TODO: change "1" to the variable for the number of outputs in each branch!!!!
-            branch_nodes = list(branch)
+        for branch in zip(*(iter(self.cppn.get_branch_nodes()),) * config.genome_config.num_outputs):
+            std_branch_nodes = [branch[0]]
+            mod_branch_nodes = [branch[1]]
 
             # Where the magic happens.
-            new_hidden_nodes, new_connections = self.des_hyperneat(branch_nodes, branch_id)
+            new_hidden_nodes, new_std_conns = self.des_hyperneat(std_branch_nodes, branch_id)
+            _, new_mod_conns = self.des_hyperneat(mod_branch_nodes, branch_id)
 
-            connections = self.merge_branch_outputs(connections, new_connections)
+            std_conns = self.merge_branch_outputs(std_conns, new_std_conns)
+
+            mod_conns[branch_id] = set(new_mod_conns)
 
             hidden_nodes = hidden_nodes.union(new_hidden_nodes)
 
             branch_id += 1.0
+        
+        num_branches = int(branch_id)
 
         # Map hidden coordinates to their IDs.
         for x, y in hidden_nodes:
@@ -379,15 +386,24 @@ class AdaptiveDESNetwork:
         # For every coordinate:
         # Check the connections and create a node with corresponding connections if appropriate.
         for (x, y), idx in coords_to_id.items():
-            for c in connections:
+            for c in std_conns:
                 if c.x2 == x and c.y2 == y:
                     draw_connections.append(c)
+                    #TODO: draw_mod_connections.append(mod_link) for mod_link in mod_conns[branch_id] -- something like this. Check if this should be done.
+                    
+                    # collect modulatory connection weights for connection c
+                    mod_weights = {}
+                    for branch_id, mod_links in mod_conns.items():
+                        for mod_link in mod_links:
+                            if (mod_link.x1, mod_link.x2, mod_link.y1, mod_link.y2) == (c.x1, c.x2, c.y1, c.y2):
+                                mod_weights[branch_id] = mod_link.weight
+                    
                     if idx in nodes:
                         initial = nodes[idx]
-                        initial.append((coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n))
+                        initial.append((coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n, mod_weights))
                         nodes[idx] = initial
                     else:
-                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n)]
+                        nodes[idx] = [(coords_to_id[c.x1, c.y1], c.weight, c.branch_id, c.a, c.b, c.c, c.d, c.n, mod_weights)]
 
         # Combine the indices with the connections/links;
         # forming node_evals used by the AdaptiveRecurrentNetwork.
@@ -399,7 +415,7 @@ class AdaptiveDESNetwork:
             draw_adaptive_des(coords_to_id, draw_connections, filename)
 
         # This is actually a feedforward network.
-        return neat.nn.AdaptiveRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight)
+        return neat.nn.AdaptiveRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight, num_branches)
 
     def merge_branch_outputs(self, cons, new_cons):
         """
@@ -640,6 +656,7 @@ class Connection:
         self.x2 = x2
         self.y2 = y2
         self.weight = weight
+        self.branch_id = 0.0
         self.a = a
         self.b = b
         self.c = c

@@ -23,14 +23,40 @@ TODO:
 * Code task
     - 
 
+
 * Code novelty search
     - 
 
 
+* Code novelty search, adaptivity, and modulation for ES-HyperNEAT
+    - 
+
+
+
+
 6/11: 11:45 - 1:30
+13th: all day
+14: 6:45 - 
+
 
 DoNow:
 
+
+Modulation is functionally done. I need to visualize it eventually.
+Make plasticity modulated
+
+mod_activations indeed stores each branch's mod activation values for each node
+
+figure out how to make the dict of all modulatory activations
+
+Try to code the mod activations and see what format the mod_links in node_evals need to be
+
+The code runs. checking if node_evals has the right info.
+
+This means I have to add a mod_links to node_evals. mod_links is a dict (in the general sense) of links [inputting?] into a given node. Each node 
+adding a list attribute to all nodes in phenotype networks
+
+creating a dict of sets of modulatory connections in des_hyperneat.py. Each item is (branch_id, set(mod_conns)).
 
 Add a mutate delete branch and differentiate from mutate delete node methods in genome.py
 
@@ -43,3 +69,13 @@ Where in the code are the branch_id's all set to 0.0?
 I think I added the branch_id attr to the CPPN nodes, not the phenotype ANN connections
 
 add branch # attribute to all connections storing what branch produced them
+
+
+
+
+
+
+------------------------------------------
+each node_evals item has (idx, self.activation, sum, 0.0, 1.0, links)
+idx is the id of the node represented by the item
+links is connections going to the node idx
