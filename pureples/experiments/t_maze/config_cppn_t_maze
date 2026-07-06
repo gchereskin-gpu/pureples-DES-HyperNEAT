@@ -2,8 +2,8 @@
 
 [NEAT]
 fitness_criterion     = max
-fitness_threshold     = 230
-pop_size              = 50
+fitness_threshold     = 1
+pop_size              = 300
 reset_on_extinction   = False
 no_fitness_termination = False
 
@@ -13,7 +13,7 @@ activation_default      = tanh
 activation_mutate_rate  = 0.5
 activation_options      = gauss sin tanh
 
-single_structural_mutation = False
+single_structural_mutation = True
 structural_mutation_surer = default
 
 enabled_rate_to_true_add = 0.0
@@ -181,9 +181,9 @@ weight_init_type        = gaussian
 
 
 [DesReproduction]
-elitism            = 5
+elitism            = 15
 survival_threshold = 0.2
-min_species_size   = 1
+min_species_size   = 5
 
 
 
@@ -247,9 +247,9 @@ branch_id_init_type         = gaussian
 # node activation options
 activation_default      = tanh
 activation_mutate_rate  = 0.5
-activation_options      = gauss sin tanh
+activation_options      = gauss sin tanh abs
 
-single_structural_mutation = True
+single_structural_mutation = False
 structural_mutation_surer = default
 
 enabled_rate_to_true_add = 0.0
@@ -298,7 +298,7 @@ node_delete_prob        = 0.2
 
 # network parameters
 num_hidden              = 0
-num_inputs              = 5
+num_inputs              = 6
 num_outputs             = 2
 
 # node response options
@@ -313,7 +313,7 @@ response_init_type      = gaussian
 
 # scale factor options
 scale_init_mean          = 0.0
-scale_init_stdev         = 0.4
+scale_init_stdev         = 10.0
 scale_max_value          = 1.0
 scale_min_value          = -1.0
 scale_mutate_power       = 0.5
@@ -327,6 +327,6 @@ weight_init_stdev       = 1.0
 weight_max_value        = 30
 weight_min_value        = -30
 weight_mutate_power     = 0.5
-weight_mutate_rate      = 0.8
+weight_mutate_rate      = 0.94
 weight_replace_rate     = 0.1
 weight_init_type        = gaussian

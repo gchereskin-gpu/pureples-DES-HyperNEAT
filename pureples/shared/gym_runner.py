@@ -30,11 +30,11 @@ def ini_desPop(state, stats, config, output):
     pop.add_reporter(stats)
     return pop
 
-def run_adaptive_des(gens, env, max_steps, config, params, substrate, max_trials=0, output=True):
+def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deployments=10, max_trials=0, output=True):
     """
     Generic OpenAI Gym runner for Adaptive DES-HyperNEAT.
     """
-    trials = 1
+    trials = num_deployments
 
     def eval_fitness(genomes, config):
 
@@ -53,17 +53,18 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, max_trials
                 done = False
                 
                 for _ in range(max_steps):
-                    for _ in range(network.activations):
-                        o = net.activate(ob)
+                    action = net.activate(ob)
                     
-                    action = np.argmax(o)
+                    # action = np.argmax(o)
                     ob, reward, terminated, truncated, _ = env.step(action)
                     done = terminated or truncated
                     total_reward += reward
                     if done:
+                        net.activate(ob)  # Activate the network one last time to update its internal state and process potential reward signals
                         break
+                    # print("done check")
                     
-                    fitnesses.append(total_reward)
+                fitnesses.append(total_reward)
                 
                 g.fitness = np.array(fitnesses).mean()
 

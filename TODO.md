@@ -21,14 +21,24 @@ TODO:
 
 
 * Code task
-    - 
+    - continuous control
+    - obs space = [sensor 1, sensor 2, 3, 4, 5]
+    - action space = [left_wheel_throttle, right_wheel_throttle]
+    - output node activations are sigmoid
+        - max output is 1, min is -1
+        - [1, 1] corresponds to moving 0.25 units forward
+    - never truncated
+    - terminated if:
+        - maze is solved
+        - 
+
+    - task:
+        - agent must explore the maze and find the end, then navigate the maze again from the start, reach the end directly, and then navigate back to the start directly.
+    
+    
 
 
-* Code novelty search
-    - 
-
-
-* Code novelty search, adaptivity, and modulation for ES-HyperNEAT
+* Code adaptivity and modulation for ES-HyperNEAT
     - 
 
 
@@ -37,10 +47,28 @@ TODO:
 6/11: 11:45 - 1:30
 13th: all day
 14: 6:45 - 
+17: 9:45 - 10:45
+
 
 
 DoNow:
+I'm trying to make a penalty for hitting the wall
 
+Should I make the scale factor initialize larger? - made it 0.9 instead of 0.5
+
+CPPN's now get a conn_length input
+
+agent needs a reward/solution input
+
+check reward code
+
+add an exploration mode and navigation mode
+
+figure out terminated and truncated
+
+Code the action method
+
+start coding t-maze task; research creating gymnasium environments and then plan the code above first
 
 Modulation is functionally done. I need to visualize it eventually.
 Make plasticity modulated

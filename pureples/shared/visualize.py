@@ -123,14 +123,15 @@ def draw_adaptive_des(id_to_coords, connections, filename):
     plt.axis([-1.1, 1.1, -1.1, 1.1])
     fig.add_subplot(111)
 
-    # find the number of branches
-    num_branches = max(c.branch_id for c in connections) + 1
+    if connections:
+        # find the number of branches
+        num_branches = max(c.branch_id for c in connections) + 1
 
-    for c in connections:
-        plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.01, head_length=0.02,
-                  fc=hue_to_rgb(c.branch_id/num_branches),
-                  ec=hue_to_rgb(c.branch_id/num_branches),
-                  length_includes_head=True)
+        for c in connections:
+            plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.01, head_length=0.02,
+                    fc=hue_to_rgb(c.branch_id/num_branches),
+                    ec=hue_to_rgb(c.branch_id/num_branches),
+                    length_includes_head=True)
         
     # for c in connections:
     #     plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.00, head_length=0.0,
