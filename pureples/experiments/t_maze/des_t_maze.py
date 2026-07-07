@@ -1,5 +1,5 @@
 """
-An experiment using a variable-sized Adaptive DES-HyperNEAT network to perform a pole balancing task.
+An experiment using a variable-sized DES-HyperNEAT network to perform a pole balancing task.
 """
 
 import pickle
@@ -10,17 +10,16 @@ from pureples.experiments.t_maze.multi_t_maze import MultiTMazeEnv
 from pureples.shared.visualize import draw_net
 from pureples.shared.substrate import Substrate
 from pureples.shared.gym_runner import run_des
-from pureples.shared.gym_runner import run_adaptive_des
-from pureples.des_hyperneat import AdaptiveDESNetwork
+from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "L"
+VERSION = "M"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 MAZE_LENGTH = 1
 MAZE_LENGTH_TEXT = "1_turn" if MAZE_LENGTH == 1 else str(MAZE_LENGTH) + "_turns"
 
-NUM_DEPLOYMENTS = 10
+NUM_DEPLOYMENTS = 14
 
 # Network coordinates and the resulting substrate.
 INPUT_COORDINATES = []
@@ -36,7 +35,7 @@ SUBSTRATE = Substrate(INPUT_COORDINATES, OUTPUT_COORDINATES)
 
 def params(version):
     """
-    Adaptive DES-HyperNEAT specific parameters.
+    DES-HyperNEAT specific parameters.
     """
     return {"initial_depth": 0 if version == "S" else 1 if version == "M" else 2,
             "max_depth": 1 if version == "S" else 2 if version == "M" else 3,
@@ -49,7 +48,7 @@ def params(version):
 
 
 # Config for CPPN.
-CONFIG = neat.config.Config(neat.genome.AdaptiveDesGenome, neat.reproduction.DesReproduction,
+CONFIG = neat.config.Config(neat.genome.DesGenome, neat.reproduction.DesReproduction,
                             neat.species.DefaultSpeciesSet, neat.stagnation.DefaultStagnation,
                             'pureples/experiments/t_maze/config_cppn_t_maze')
 
@@ -59,8 +58,8 @@ def run(gens, env, version):
     Run the pole balancing task using the Gym environment
     Returns the winning genome and the statistics of the run.
     """
-    winner, stats = run_adaptive_des(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS)
-    print(f"adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT} done")
+    winner, stats = run_des(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS)
+    print(f"des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT} done")
     return winner, stats
 
 
@@ -78,10 +77,10 @@ if __name__ == '__main__':
 
     # Save CPPN if wished reused and draw it + winner to file.
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
-    NETWORK = AdaptiveDESNetwork(SUBSTRATE, CPPN, params(VERSION))
+    NETWORK = DESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(CONFIG, 
-        filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/t_maze/des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/t_maze/des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/t_maze/des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)

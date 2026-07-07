@@ -38,8 +38,10 @@ TODO:
     
 
 
-* Code adaptivity and modulation for ES-HyperNEAT
+* Code adaptivity and modulation for an Adaptive ES-HyperNEAT
     - 
+
+* Code a t-maze runner file for adaptive ES-HyperNEAT
 
 
 
@@ -52,6 +54,10 @@ TODO:
 
 
 DoNow:
+why does the gym_runner argmax the ANN outputs?
+
+code adaptive ES
+
 I'm trying to make a penalty for hitting the wall
 
 Should I make the scale factor initialize larger? - made it 0.9 instead of 0.5

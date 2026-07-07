@@ -133,6 +133,15 @@ is_branch_mutate_rate   = 0.0
 is_branch_rate_to_true_add = 0.0
 is_branch_rate_to_false_add = 0.0
 
+branch_id_init_mean         = 0.0
+branch_id_init_stdev        = 0.0
+branch_id_max_value         = 10000.0
+branch_id_min_value         = 0.0
+branch_id_mutate_power      = 0.0
+branch_id_mutate_rate       = 0.0
+branch_id_replace_rate      = 0.0
+branch_id_init_type         = gaussian
+
 # connection enable options
 enabled_default         = True
 enabled_mutate_rate     = 0.01
@@ -146,7 +155,7 @@ node_delete_prob        = 0.2
 
 # network parameters
 num_hidden              = 0
-num_inputs              = 5
+num_inputs              = 6
 num_outputs             = 1
 
 # node response options

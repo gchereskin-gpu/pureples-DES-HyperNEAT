@@ -90,11 +90,11 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deploy
     winner_hundred = pop.run(eval_fitness, gens)
     return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
-def run_des(gens, env, max_steps, config, params, substrate, max_trials=0, output=True):
+def run_des(gens, env, max_steps, config, params, substrate, num_deployments=10, max_trials=0, output=True):
     """
-    Generic OpenAI Gym runner for ES-HyperNEAT.
+    Generic OpenAI Gym runner for Adaptive DES-HyperNEAT.
     """
-    trials = 1
+    trials = num_deployments
 
     def eval_fitness(genomes, config):
 
@@ -113,19 +113,55 @@ def run_des(gens, env, max_steps, config, params, substrate, max_trials=0, outpu
                 done = False
                 
                 for _ in range(max_steps):
-                    for _ in range(network.activations):
-                        o = net.activate(ob)
+                    action = net.activate(ob)
                     
-                    action = np.argmax(o)
+                    # action = np.argmax(o)
                     ob, reward, terminated, truncated, _ = env.step(action)
                     done = terminated or truncated
                     total_reward += reward
                     if done:
+                        net.activate(ob)  # Activate the network one last time to update its internal state and process potential reward signals
                         break
+                    # print("done check")
                     
-                    fitnesses.append(total_reward)
+                fitnesses.append(total_reward)
                 
                 g.fitness = np.array(fitnesses).mean()
+    # """
+    # Generic OpenAI Gym runner for ES-HyperNEAT.
+    # """
+    # trials = 1
+
+    # def eval_fitness(genomes, config):
+
+    #     for _, g in genomes:
+    #         cppn = neat.nn.DesFeedForwardNetwork.create(g, config)
+    #         network = DESNetwork(substrate, cppn, params)
+    #         net = network.create_phenotype_network()
+
+    #         fitnesses = []
+
+    #         for _ in range(trials):
+    #             ob = env.reset()[0]
+    #             net.reset()
+
+    #             total_reward = 0
+    #             done = False
+                
+    #             for _ in range(max_steps):
+    #                 for _ in range(network.activations):
+    #                     o = net.activate(ob)
+                    
+    #                 action = np.argmax(net.activate(ob))
+    #                 ob, reward, terminated, truncated, _ = env.step(action)
+    #                 done = terminated or truncated
+    #                 total_reward += reward
+    #                 if done:
+    #                     break
+                    
+    #                 fitnesses.append(total_reward)
+                
+    #             g.fitness = np.array(fitnesses).mean()
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()

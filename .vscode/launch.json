@@ -25,5 +25,12 @@
             "request": "launch",
             "module": "pureples.experiments.xor.des_hyperneat_xor"
         }
+
+        {
+            "name": "Python Debugger: es_hyperneat_pole_balancing",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pureples.experiments.pole_balancing.es_hyperneat_pole_balancing"
+        }
     ]
 }

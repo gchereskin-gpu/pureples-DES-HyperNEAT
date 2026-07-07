@@ -12,7 +12,7 @@ from pureples.shared.gym_runner import run_des
 from pureples.des_hyperneat import DESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "S"
+VERSION = "M"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 # Network coordinates and the resulting substrate.
@@ -71,8 +71,8 @@ if __name__ == '__main__':
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = DESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(
-        filename=f"pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/pole_balancing/results/des_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/pole_balancing/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/pole_balancing/results/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/pole_balancing/results/des_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)
