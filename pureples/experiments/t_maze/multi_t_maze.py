@@ -60,31 +60,52 @@ class MultiTMazeEnv(gym.Env):
 
         self.current_timestep += 1
 
+        reached_goal = in_bounds(self.current_position, self.goal_endpoint)
+
         # Exploration and navigation trials use different time limits and reset rules.
         if self.exploration:
-            # in exploration trial, max number of timesteps is 4 * 8n where n is number of turns
+            # in exploration trial, max number of timesteps is 4 * 10n where n is number of turns
             max_timesteps = 4 * 10 * self.num_turns + 1
-            if in_bounds(self.current_position, self.goal_endpoint) or self.current_timestep >= max_timesteps:
+
+            # Reaching the goal fires the reward cue. It is set *before* the
+            # teleport below, and the observation is taken at the goal position,
+            # so the reward signal is bound to the sensory/network state that
+            # discovered the goal - the association the plastic network learns
+            # from. (Previously self.solved was checked after resetting the
+            # position to the origin, so it could never become True.)
+            if reached_goal:
+                self.solved = True
+
+            ob = self.observe()
+
+            # Exploration ends when the goal is found or time runs out; the agent
+            # is then teleported back to the start for the navigation trial.
+            if reached_goal or self.current_timestep >= max_timesteps:
                 self.exploration = False
                 self.current_position = [0.0, 0.0]
                 self.rotation = 0.0
                 self.current_timestep = 0
-                if in_bounds(self.current_position, self.goal_endpoint):
-                    self.solved = True
-            reward = 0.0
-        else:
-            # in navigation trial, max number of timesteps is 4 * 4n where n is number of turns
-            max_timesteps = 4 * 4 * self.num_turns + 3
-            if self.current_timestep >= max_timesteps:
-                terminated = True
-            # check if agent reached end of maze
-            if in_bounds(self.current_position, self.goal_endpoint):
-                reward = 1.0
-                terminated = True
-                self.solved = True
-            if hit_wall:
-                reward -= 0.1  # Penalize hitting walls
 
+            # Exploration is never scored.
+            reward = 0.0
+            return ob, reward, terminated, truncated, self.info
+
+        # Navigation trial.
+        # in navigation trial, max number of timesteps is 4 * 4n where n is number of turns
+        max_timesteps = 4 * 4 * self.num_turns + 3
+        if self.current_timestep >= max_timesteps:
+            terminated = True
+        # check if agent reached end of maze
+        if reached_goal:
+            reward = 1.0
+            terminated = True
+            self.solved = True
+        if hit_wall:
+            reward -= 0.1  # Penalize hitting walls
+
+        # The reward input stays at 0.0 throughout navigation (self.solved is
+        # only True on the terminal goal-reaching step), keeping neuromodulation
+        # off during exploitation so the memory formed in exploration is stable.
         ob = self.observe()
 
         return ob, reward, terminated, truncated, self.info

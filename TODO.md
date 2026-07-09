@@ -39,7 +39,7 @@ TODO:
 
 
 * Code adaptivity and modulation for ES-HyperNEAT
-    - 
+    - Make the D coefficient of the learning rules constant based on the study's value
 
 
 
@@ -52,6 +52,11 @@ TODO:
 
 
 DoNow:
+Coding Adaptive ES-HyperNEAT
+ - weights update based on modulated plasticity rules
+ - plasticity rules update weights based on std_activations
+ - modulation modulates plasticity based on mod_activations
+
 I'm trying to make a penalty for hitting the wall
 
 Should I make the scale factor initialize larger? - made it 0.9 instead of 0.5

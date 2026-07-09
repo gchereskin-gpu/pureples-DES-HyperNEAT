@@ -1,5 +1,5 @@
 """
-An experiment using a variable-sized ES-HyperNEAT network to perform a pole balancing task.
+An experiment using a variable-sized Adaptive ES-HyperNEAT network to perform a pole balancing task.
 """
 
 import pickle
@@ -8,8 +8,8 @@ import neat
 import gymnasium as gym
 from pureples.shared.visualize import draw_net
 from pureples.shared.substrate import Substrate
-from pureples.shared.gym_runner import run_es
-from pureples.es_hyperneat.es_hyperneat import ESNetwork
+from pureples.shared.gym_runner import run_adaptive_es
+from pureples.es_hyperneat.es_hyperneat import AdaptiveESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
 VERSION = "S"
@@ -27,7 +27,7 @@ SUBSTRATE = Substrate(INPUT_COORDINATES, OUTPUT_COORDINATES)
 
 def params(version):
     """
-    ES-HyperNEAT specific parameters.
+    Adaptive ES-HyperNEAT specific parameters.
     """
     return {"initial_depth": 0 if version == "S" else 1 if version == "M" else 2,
             "max_depth": 1 if version == "S" else 2 if version == "M" else 3,
@@ -40,7 +40,7 @@ def params(version):
 
 
 # Config for CPPN.
-CONFIG = neat.config.Config(neat.genome.DefaultGenome, neat.reproduction.DefaultReproduction,
+CONFIG = neat.config.Config(neat.genome.AdaptiveDefaultGenome, neat.reproduction.DefaultReproduction,
                             neat.species.DefaultSpeciesSet, neat.stagnation.DefaultStagnation,
                             'pureples/experiments/pole_balancing/config_cppn_pole_balancing')
 
@@ -50,8 +50,8 @@ def run(gens, env, version):
     Run the pole balancing task using the Gym environment
     Returns the winning genome and the statistics of the run.
     """
-    winner, stats = run_es(gens, env, 500, CONFIG, params(version), SUBSTRATE)
-    print(f"es_hyperneat_polebalancing_{VERSION_TEXT} done")
+    winner, stats = run_adaptive_es(gens, env, 500, CONFIG, params(version), SUBSTRATE)
+    print(f"adaptive_es_hyperneat_polebalancing_{VERSION_TEXT} done")
     return winner, stats
 
 
@@ -67,10 +67,10 @@ if __name__ == '__main__':
 
     # Save CPPN if wished reused and draw it + winner to file.
     CPPN = neat.nn.FeedForwardNetwork.create(WINNER, CONFIG)
-    NETWORK = ESNetwork(SUBSTRATE, CPPN, params(VERSION))
+    NETWORK = AdaptiveESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(
-        filename=f"pureples/experiments/pole_balancing/results/es_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/pole_balancing/results/adaptive_es_hyperneat_pole_balancing_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/pole_balancing/results/es_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/pole_balancing/results/es_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/pole_balancing/results/adaptive_es_hyperneat_pole_balancing_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/pole_balancing/results/adaptive_es_hyperneat_pole_balancing_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)
