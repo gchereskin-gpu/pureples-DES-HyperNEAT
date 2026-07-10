@@ -290,11 +290,11 @@ def run_es(gens, env, max_steps, config, params, substrate, max_trials=100, outp
     winner_hundred = pop.run(eval_fitness, gens)
     return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
-def run_adaptive_es(gens, env, max_steps, config, params, substrate, max_trials=100, output=True):
+def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deployments=10,
+                     max_trials=0, output=True, num_workers=None):
     """
     Generic OpenAI Gym runner for ES-HyperNEAT.
     """
-    trials = 1
 
     def eval_fitness(genomes, config):
 
@@ -305,47 +305,45 @@ def run_adaptive_es(gens, env, max_steps, config, params, substrate, max_trials=
 
             fitnesses = []
 
-            for _ in range(trials):
+            for _ in range(num_deployments):
                 ob = env.reset()[0]
                 net.reset()
+                fitness = 0
 
-                total_reward = 0
                 done = False
-                
                 for _ in range(max_steps):
-                    for _ in range(network.activations):
-                        o = net.activate(ob)
                     
-                    action = np.argmax(o)
-                    ob, reward, terminated, truncated, _ = env.step(action)
+                    ob, reward, terminated, truncated, _ = env.step(net.activate(ob))
                     done = terminated or truncated
-                    total_reward += reward
+                    fitness += reward
                     if done:
                         break
-                    
-                    fitnesses.append(total_reward)
+                        
+                fitnesses.append(fitness)
                 
-                g.fitness = np.array(fitnesses).mean()
+            g.fitness = np.array(fitnesses).mean()
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()
     pop = ini_pop(None, stats_one, config, output)
-    pop.run(eval_fitness, gens)
+    winner_one = pop.run(eval_fitness, gens)
 
-    stats_ten = neat.statistics.StatisticsReporter()
-    pop = ini_pop((pop.population, pop.species, 0), stats_ten, config, output)
-    trials = 10
-    winner_ten = pop.run(eval_fitness, gens)
+    return winner_one, (stats_one)
 
-    if max_trials == 0:
-        return winner_ten, (stats_one, stats_ten)
+    # stats_ten = neat.statistics.StatisticsReporter()
+    # pop = ini_pop((pop.population, pop.species, 0), stats_ten, config, output)
+    # trials = 10
+    # winner_ten = pop.run(eval_fitness, gens)
 
-    stats_hundred = neat.statistics.StatisticsReporter()
-    pop = ini_pop((pop.population, pop.species, 0),
-                  stats_hundred, config, output)
-    trials = max_trials
-    winner_hundred = pop.run(eval_fitness, gens)
-    return winner_hundred, (stats_one, stats_ten, stats_hundred)
+    # if max_trials == 0:
+    #     return winner_ten, (stats_one, stats_ten)
+
+    # stats_hundred = neat.statistics.StatisticsReporter()
+    # pop = ini_pop((pop.population, pop.species, 0),
+    #               stats_hundred, config, output)
+    # trials = max_trials
+    # winner_hundred = pop.run(eval_fitness, gens)
+    # return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
 def run_hyper(gens, env, max_steps, config, substrate, activations, max_trials=100,
               activation="sigmoid", output=True):

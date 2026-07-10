@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: adaptive es t maze",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pureples.experiments.t_maze.adaptive_es_t_maze"
+        }
+        
+        {
             "name": "Python Debugger: adaptive es pole balancing",
             "type": "debugpy",
             "request": "launch",

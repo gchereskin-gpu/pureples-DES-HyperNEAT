@@ -35,7 +35,13 @@ TODO:
     - task:
         - agent must explore the maze and find the end, then navigate the maze again from the start, reach the end directly, and then navigate back to the start directly.
     
-    
+    - new task
+        - four independent deployments
+        - each deployment consists of 10 episodes
+        - in the first episode, the high reward is randomly placed
+        - in the second episode, the high reward stays in the same place
+        - in the third to ninth episodes, one random episode switches the location of the high reward
+        - in the 10th episode, the high reward does not switch
 
 
 * Code adaptivity and modulation for ES-HyperNEAT
@@ -52,6 +58,8 @@ TODO:
 
 
 DoNow:
+Update the reward and make T-maze "generation" static.
+
 Coding Adaptive ES-HyperNEAT
  - weights update based on modulated plasticity rules
  - plasticity rules update weights based on std_activations

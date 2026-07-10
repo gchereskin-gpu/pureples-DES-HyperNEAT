@@ -9,7 +9,6 @@ import gymnasium as gym
 from pureples.experiments.t_maze.multi_t_maze import MultiTMazeEnv
 from pureples.shared.visualize import draw_net
 from pureples.shared.substrate import Substrate
-from pureples.shared.gym_runner import run_des
 from pureples.shared.gym_runner import run_adaptive_des
 from pureples.des_hyperneat import AdaptiveDESNetwork
 
@@ -20,7 +19,7 @@ VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "l
 MAZE_LENGTH = 1
 MAZE_LENGTH_TEXT = "1_turn" if MAZE_LENGTH == 1 else str(MAZE_LENGTH) + "_turns"
 
-NUM_DEPLOYMENTS = 14
+NUM_DEPLOYMENTS = 4
 
 # Network coordinates and the resulting substrate.
 INPUT_COORDINATES = []
@@ -81,8 +80,8 @@ if __name__ == '__main__':
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = AdaptiveDESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(CONFIG, 
-        filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)
