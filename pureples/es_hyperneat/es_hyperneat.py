@@ -7,7 +7,7 @@ from re import A
 import neat
 import numpy as np
 from pureples.hyperneat.hyperneat import query_cppn, query_cppn_adaptive_es
-from pureples.shared.visualize import draw_es
+from pureples.shared.visualize import draw_es, draw_adaptive_es
 
 
 class ESNetwork:
@@ -292,7 +292,8 @@ class AdaptiveESNetwork:
             input_nodes)+len(output_coordinates)))
         hidden_idx = len(input_coordinates)+len(output_coordinates)
 
-        coordinates, indices, draw_connections, node_evals = [], [], [], []
+        coordinates, indices, node_evals = [], [], []
+        draw_std_connections, draw_mod_connections = [], []
         nodes = {}
 
         coordinates.extend(input_coordinates)
@@ -302,7 +303,7 @@ class AdaptiveESNetwork:
 
         # Map input and output coordinates to their IDs.
         coords_to_id = dict(zip(coordinates, indices))
-        
+
         # Where the magic happens.
         hidden_nodes, connections = self.adaptive_es_hyperneat(0)
         _, mod_connections = self.adaptive_es_hyperneat(1)
@@ -317,7 +318,7 @@ class AdaptiveESNetwork:
         for (x, y), idx in coords_to_id.items():
             for c in connections:
                 if c.x2 == x and c.y2 == y:
-                    draw_connections.append(c) #TODO: see corresponding comment in des_hyperneat.py
+                    draw_std_connections.append(c)
 
                     if idx in nodes:
                         initial = nodes[idx][0]
@@ -328,7 +329,13 @@ class AdaptiveESNetwork:
 
             for c in mod_connections:
                 if c.x2 == x and c.y2 == y:
-                    draw_connections.append(c) #TODO: see corresponding comment in des_hyperneat.py
+                    # A modulatory connection only enters node_evals when its
+                    # source is also a standard node (see below). A connection
+                    # whose source is not a node is inert, so skip it entirely:
+                    # it is neither used by the network nor drawn.
+                    if (c.x1, c.y1) not in coords_to_id:
+                        continue
+                    draw_mod_connections.append(c)
 
                     if idx in nodes:
                         if nodes[idx][1]:
@@ -350,7 +357,7 @@ class AdaptiveESNetwork:
 
         # Visualize the network?
         if filename is not None:
-            draw_es(coords_to_id, draw_connections, filename)
+            draw_adaptive_es(coords_to_id, draw_std_connections, draw_mod_connections, filename)
 
         # This is actually a feedforward network.
         return neat.nn.recurrent.AdaptiveESRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight)

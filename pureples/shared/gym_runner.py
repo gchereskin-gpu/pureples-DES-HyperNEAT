@@ -79,6 +79,51 @@ def _eval_adaptive_des_genome_worker(genome, config, substrate, params, max_step
                                      max_steps, trials, _WORKER_ENV)
 
 
+def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trials, env):
+    """
+    Evaluate a single genome for Adaptive ES-HyperNEAT and return its fitness.
+
+    Defined at module level (rather than as a closure) so it can be pickled and
+    dispatched to worker processes by neat's ParallelEvaluator.
+    """
+    cppn = neat.nn.FeedForwardNetwork.create(genome, config)
+    network = AdaptiveESNetwork(substrate, cppn, params)
+    net = network.create_phenotype_network()
+
+    fitnesses = []
+
+    for _ in range(trials):
+        ob = env.reset()[0]
+        net.reset()
+
+        fitness = 0
+        done = False
+
+        for _ in range(max_steps):
+            ob, reward, terminated, truncated, _ = env.step(net.activate(ob))
+            done = terminated or truncated
+            fitness += reward
+            if done:
+                break
+
+        fitnesses.append(fitness)
+
+    return float(np.array(fitnesses).mean())
+
+
+def _eval_adaptive_es_genome_worker(genome, config, substrate, params, max_steps, trials):
+    """
+    ParallelEvaluator entry point: evaluate a genome using the per-worker env.
+
+    ParallelEvaluator calls this with ``(genome, config)`` (the remaining args are
+    bound via functools.partial). The env can't be pickled and shipped from the
+    parent, so it's built once per worker in ``_init_adaptive_des_worker`` and read
+    here from the module global.
+    """
+    return _eval_adaptive_es_genome(genome, config, substrate, params,
+                                    max_steps, trials, _WORKER_ENV)
+
+
 def ini_pop(state, stats, config, output):
     """
     Initialize population attaching statistics reporter.
@@ -158,21 +203,6 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deploy
             evaluator.close()
 
     return winner, (stats_one,)
-
-    stats_ten = neat.statistics.StatisticsReporter()
-    pop = ini_desPop((pop.population, pop.species, 0), stats_ten, config, output)
-    trials = 10
-    winner_ten = pop.run(eval_fitness, gens)
-
-    if max_trials == 0:
-        return winner_ten, (stats_one, stats_ten)
-
-    stats_hundred = neat.statistics.StatisticsReporter()
-    pop = ini_desPop((pop.population, pop.species, 0),
-                  stats_hundred, config, output)
-    trials = max_trials
-    winner_hundred = pop.run(eval_fitness, gens)
-    return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
 def run_des(gens, env, max_steps, config, params, substrate, max_trials=0, output=True):
     """
@@ -293,57 +323,62 @@ def run_es(gens, env, max_steps, config, params, substrate, max_trials=100, outp
 def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deployments=10,
                      max_trials=0, output=True, num_workers=None):
     """
-    Generic OpenAI Gym runner for ES-HyperNEAT.
+    Generic OpenAI Gym runner for Adaptive ES-HyperNEAT.
+
+    Fitness evaluation is parallelized across processes using neat-python's
+    ParallelEvaluator. ``num_workers`` controls the size of the process pool and
+    defaults to ``os.cpu_count()``. Pass ``num_workers=1`` to fall back to the
+    original single-process evaluation (useful for debugging).
     """
+    trials = num_deployments
 
-    def eval_fitness(genomes, config):
+    if num_workers is None:
+        num_workers = os.cpu_count() or 1
 
-        for _, g in genomes:
-            cppn = neat.nn.FeedForwardNetwork.create(g, config)
-            network = AdaptiveESNetwork(substrate, cppn, params)
-            net = network.create_phenotype_network()
+    evaluator = None
+    if num_workers > 1:
+        # Each worker needs its own env (they're not safe to share across
+        # processes). Registered envs are rebuilt from their string id via
+        # gym.make; custom, unregistered env instances (whose ``spec`` is None)
+        # are reconstructed by deep-copying the picklable instance in each
+        # worker. Both factories are picklable so they can cross to the pool.
+        spec = getattr(env, "spec", None)
+        env_id = getattr(spec, "id", None)
+        if isinstance(env_id, str):
+            import gymnasium as gym
+            env_factory = functools.partial(gym.make, env_id)
+        else:
+            env_factory = functools.partial(copy.deepcopy, env)
 
-            fitnesses = []
-
-            for _ in range(num_deployments):
-                ob = env.reset()[0]
-                net.reset()
-                fitness = 0
-
-                done = False
-                for _ in range(max_steps):
-                    
-                    ob, reward, terminated, truncated, _ = env.step(net.activate(ob))
-                    done = terminated or truncated
-                    fitness += reward
-                    if done:
-                        break
-                        
-                fitnesses.append(fitness)
-                
-            g.fitness = np.array(fitnesses).mean()
+        # Parallel path: ParallelEvaluator fans genomes out across a process
+        # pool, assigning the returned value to each genome's fitness. The
+        # per-genome work (and the constant substrate/params/max_steps/trials)
+        # is bound via functools.partial so the callable stays picklable.
+        evaluator = neat.ParallelEvaluator(
+            num_workers,
+            functools.partial(_eval_adaptive_es_genome_worker,
+                              substrate=substrate, params=params,
+                              max_steps=max_steps, trials=trials),
+            initializer=_init_adaptive_des_worker,
+            initargs=(env_factory,),
+        )
+        eval_fitness = evaluator.evaluate
+    else:
+        def eval_fitness(genomes, config):
+            for _, g in genomes:
+                g.fitness = _eval_adaptive_es_genome(
+                    g, config, substrate, params, max_steps, trials, env)
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()
     pop = ini_pop(None, stats_one, config, output)
-    winner_one = pop.run(eval_fitness, gens)
+    try:
+        winner_one = pop.run(eval_fitness, gens)
+    finally:
+        if evaluator is not None:
+            evaluator.close()
 
-    return winner_one, (stats_one)
-
-    # stats_ten = neat.statistics.StatisticsReporter()
-    # pop = ini_pop((pop.population, pop.species, 0), stats_ten, config, output)
-    # trials = 10
-    # winner_ten = pop.run(eval_fitness, gens)
-
-    # if max_trials == 0:
-    #     return winner_ten, (stats_one, stats_ten)
-
-    # stats_hundred = neat.statistics.StatisticsReporter()
-    # pop = ini_pop((pop.population, pop.species, 0),
-    #               stats_hundred, config, output)
-    # trials = max_trials
-    # winner_hundred = pop.run(eval_fitness, gens)
-    # return winner_hundred, (stats_one, stats_ten, stats_hundred)
+    return winner_one, (stats_one,)
 
 def run_hyper(gens, env, max_steps, config, substrate, activations, max_trials=100,
               activation="sigmoid", output=True):

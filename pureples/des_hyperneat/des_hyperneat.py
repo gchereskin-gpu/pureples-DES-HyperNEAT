@@ -346,7 +346,8 @@ class AdaptiveDESNetwork:
             input_nodes)+len(output_coordinates)))
         hidden_idx = len(input_coordinates)+len(output_coordinates)
 
-        coordinates, indices, draw_connections, node_evals = [], [], [], []
+        coordinates, indices, node_evals = [], [], []
+        draw_std_connections = []
         nodes = {}
 
         coordinates.extend(input_coordinates)
@@ -388,9 +389,8 @@ class AdaptiveDESNetwork:
         for (x, y), idx in coords_to_id.items():
             for c in std_conns:
                 if c.x2 == x and c.y2 == y:
-                    draw_connections.append(c)
-                    #TODO: draw_mod_connections.append(mod_link) for mod_link in mod_conns[branch_id] -- something like this. Check if this should be done.
-                    
+                    draw_std_connections.append(c)
+
                     # collect modulatory connection weights for connection c
                     mod_weights = {}
                     for branch_id, mod_links in mod_conns.items():
@@ -412,7 +412,16 @@ class AdaptiveDESNetwork:
 
         # Visualize the network?
         if filename is not None:
-            draw_adaptive_des(coords_to_id, draw_connections, filename)
+            # A modulatory connection only affects the network when it shares its
+            # endpoints with a standard connection (that is the sole condition
+            # under which its weight is picked up as a modulator above).
+            # Modulatory connections between coordinates that are not joined by a
+            # standard connection are inert, so we leave them out of the plot.
+            std_keys = {(c.x1, c.y1, c.x2, c.y2) for c in draw_std_connections}
+            draw_mod_connections = [mod_link for mod_links in mod_conns.values()
+                                    for mod_link in mod_links
+                                    if (mod_link.x1, mod_link.y1, mod_link.x2, mod_link.y2) in std_keys]
+            draw_adaptive_des(coords_to_id, draw_std_connections, draw_mod_connections, filename)
 
         # This is actually a feedforward network.
         return neat.nn.AdaptiveRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight, num_branches)

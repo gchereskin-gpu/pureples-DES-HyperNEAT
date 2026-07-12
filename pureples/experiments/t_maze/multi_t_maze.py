@@ -10,21 +10,24 @@ class MultiTMazeEnv(gym.Env):
         self.num_turns = num_turns
         self.ray_step = 0.05  # Distance increment for ray marching
         self.max_ray_distance = 2.0  # Maximum distance for each sensor ray
-        self.reward_process_steps = 5
+        self.reward_process_steps = 5 #TODO: make this an argument to be set in higher level code
         self.reward = 0.0
         self.switch_reward_episode = 0
+        self.reward_process_timestep = 0
+
 
     def reset(self, seed = None, options = None):
 
         self.maze_points, self.high_reward, self.low_rewards = self.generate_t_maze()
 
-        self.switched_reward_episode = random.randint(1, 8)
+        self.switch_reward_episode = random.randint(1, 5)
 
         self.current_position = [0.0, 0.0]
         self.rotation = 0.0
 
         self.current_episode = 0
         self.episode_timestep = 0
+        self.reward_process_timestep = 0
 
         ob = self.observe()
 
@@ -42,76 +45,83 @@ class MultiTMazeEnv(gym.Env):
         terminated, truncated = False, False
         reward = 0.0
 
-        # The action is a 3-tuple: [left, forward, right].
-        left, forward, right = action
+        if self.reward_process_timestep == 0:
+            # The action is a 3-tuple: [left, forward, right].
+            left, forward, right = action
 
-        # Rotate the agent by 17 degrees for each unit of right-minus-left.
-        rotation_delta = 17.0 * (right - left)
-        self.rotation = (self.rotation + rotation_delta) % 360.0
+            # Rotate the agent by 17 degrees for each unit of right-minus-left.
+            rotation_delta = 17.0 * (right - left)
+            self.rotation = (self.rotation + rotation_delta) % 360.0
 
-        # Move forward in the new heading by forward/4 units.
-        old_position = self.current_position.copy()
-        heading_x = math.sin(math.radians(self.rotation))
-        heading_y = math.cos(math.radians(self.rotation))
-        self.current_position = [
-            self.current_position[0] + heading_x * (forward / 4.0),
-            self.current_position[1] + heading_y * (forward / 4.0),
-        ] #TODO: Normalize the forward so that the robot can move backwards or stop when forward is 0.5 or less
+            # Move forward in the new heading by forward/4 units.
+            old_position = self.current_position.copy()
+            heading_x = math.sin(math.radians(self.rotation))
+            heading_y = math.cos(math.radians(self.rotation))
+            self.current_position = [
+                self.current_position[0] + heading_x * (forward / 4.0),
+                self.current_position[1] + heading_y * (forward / 4.0),
+            ] #TODO: Normalize the forward so that the robot can move backwards or stop when forward is 0.5 or less
 
-        # If the new position leaves the maze path, undo the move and end the episode.
-        if not self.point_in_maze(self.current_position):
-            self.current_position = old_position
-            self.hit_wall = True
-        else:
-            self.hit_wall = False
+            # If the new position leaves the maze path, undo the move and end the episode.
+            if not self.point_in_maze(self.current_position):
+                self.current_position = old_position
+                self.hit_wall = True
+            else:
+                self.hit_wall = False
 
         # check if reached end of maze
         high_reward = any(in_bounds(self.current_position, p) for p in self.high_reward)
         low_reward = any(in_bounds(self.current_position, p) for p in self.low_rewards)
 
-        # move on to next episode
-        if self.episode_timestep >= 18 or high_reward or low_reward:
-            # end deployment if appropriate
-            if self.current_episode >= 10:
-                terminated = True
-            
-            # reset agent
-            self.current_position = [0.0, 0.0]
-            self.rotation = 0.0
-
+        # process reward and/or end episode
+        if self.episode_timestep >= 30 or high_reward or low_reward:
             # process reward
-            self.reward = 1.0 if high_reward else 0.1 if low_reward else 0.0
-            for _ in range(self.reward_process_steps):
+            if self.reward_process_timestep < self.reward_process_steps:
+                self.reward = 1.0 if high_reward else 0.1 if low_reward else 0.0
                 ob = self.observe()
+                self.reward_process_timestep += 1
 
-            # calculate fitness
-            if self.current_episode == 0:
-                self.last_reward = self.reward
-            if self.current_episode > 0:
-                if self.last_reward == 1.0 and self.reward == 1.0:
-                    reward = 1.0
-                elif self.last_reward == 0.1 and self.reward == 0.1:
-                    reward = 0.1
-                elif self.last_reward == 0.0:
-                    reward = 0.0
+            # move on to next episode if done processing reward
+            if self.reward_process_timestep >= self.reward_process_steps:
+                # end deployment if appropriate
+                if self.current_episode >= 9:
+                    terminated = True
+                
+                # reset agent
+                self.current_position = [0.0, 0.0]
+                self.rotation = 0.0
+
+                # calculate fitness
+                if self.current_episode == 0:
                     self.last_reward = self.reward
-                else:
-                    reward = 0.0
-                    self.last_reward = 0.0
-            
-            # penalize wall collision
-            if self.hit_wall:
-                reward -= 0.05
-                self.hit_wall = False
-            
-            # switch reward sides if appropiate
-            if self.current_episode == self.switch_reward_episode:
-                self.maze_points, self.high_reward, self.low_rewards = self.generate_t_maze()
+                if self.current_episode > 0:
+                    if self.last_reward == 1.0 and self.reward == 1.0:
+                        reward = 1.0
+                    elif self.last_reward == 0.1 and self.reward == 0.1:
+                        reward = 0.1
+                    elif self.last_reward == 0.0:
+                        reward = 0.0
+                        self.last_reward = self.reward
+                    else:
+                        reward = 0.0
+                        self.last_reward = 0.0
+                self.reward = 0.0
 
-            self.current_episode += 1
-            self.episode_timestep = 0
+                # penalize wall collision
+                if self.hit_wall:
+                    reward -= 0.05
+                    self.hit_wall = False
+                
+                # switch reward sides if appropriate (always flip to the opposite arm)
+                if self.current_episode == self.switch_reward_episode:
+                    self.high_reward, self.low_rewards = self.low_rewards, self.high_reward #TODO: This will not work as intended if using longer than a single t-maze
+
+                self.current_episode += 1
+                self.episode_timestep = 0
+                self.reward_process_timestep = 0
         else:
             ob = self.observe()
+            self.episode_timestep += 1
             
         return ob, reward, terminated, truncated, self.info
 

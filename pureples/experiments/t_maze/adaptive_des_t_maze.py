@@ -27,7 +27,6 @@ INPUT_COORDINATES = []
 for i in range(0, 5):
     INPUT_COORDINATES.append((-1. + (1.0*i/2), -1.))
 INPUT_COORDINATES.append((0., -1.2))
-INPUT_COORDINATES.append((0., -1.4))
 
 OUTPUT_COORDINATES = [(-1., 1.), (0., 1.), (1., 1.)]
 SUBSTRATE = Substrate(INPUT_COORDINATES, OUTPUT_COORDINATES)
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     ENVIRONMENT = MultiTMazeEnv(MAZE_LENGTH)
 
     # Run! Only relevant to look at the winner.
-    WINNER = run(1000, ENVIRONMENT, VERSION)[0]
+    WINNER = run(500, ENVIRONMENT, VERSION)[0]
 
     print(WINNER)
 

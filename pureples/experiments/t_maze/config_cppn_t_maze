@@ -2,7 +2,7 @@
 
 [NEAT]
 fitness_criterion     = max
-fitness_threshold     = 1
+fitness_threshold     = 7.0
 pop_size              = 300
 reset_on_extinction   = False
 no_fitness_termination = False
@@ -89,7 +89,7 @@ species_elitism      = 5
 [DefaultReproduction]
 elitism            = 5
 survival_threshold = 0.2
-min_species_size = 1
+min_species_size = 5
 
 
 [AdaptiveDefaultGenome]
@@ -301,9 +301,9 @@ weight_init_type        = gaussian
 
 
 [DesReproduction]
-elitism            = 6
+elitism            = 5
 survival_threshold = 0.2
-min_species_size   = 6
+min_species_size   = 5
 
 
 
