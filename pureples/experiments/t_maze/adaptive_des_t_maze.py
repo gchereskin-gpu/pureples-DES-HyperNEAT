@@ -9,7 +9,6 @@ import gymnasium as gym
 from pureples.experiments.t_maze.multi_t_maze import MultiTMazeEnv
 from pureples.shared.visualize import draw_net
 from pureples.shared.substrate import Substrate
-from pureples.shared.gym_runner import run_des
 from pureples.shared.gym_runner import run_adaptive_des
 from pureples.des_hyperneat import AdaptiveDESNetwork
 
@@ -20,7 +19,7 @@ VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "l
 MAZE_LENGTH = 1
 MAZE_LENGTH_TEXT = "1_turn" if MAZE_LENGTH == 1 else str(MAZE_LENGTH) + "_turns"
 
-NUM_DEPLOYMENTS = 10
+NUM_DEPLOYMENTS = 4
 
 # Network coordinates and the resulting substrate.
 INPUT_COORDINATES = []
@@ -28,7 +27,6 @@ INPUT_COORDINATES = []
 for i in range(0, 5):
     INPUT_COORDINATES.append((-1. + (1.0*i/2), -1.))
 INPUT_COORDINATES.append((0., -1.2))
-INPUT_COORDINATES.append((0., -1.4))
 
 OUTPUT_COORDINATES = [(-1., 1.), (0., 1.), (1., 1.)]
 SUBSTRATE = Substrate(INPUT_COORDINATES, OUTPUT_COORDINATES)
@@ -59,7 +57,8 @@ def run(gens, env, version):
     Run the pole balancing task using the Gym environment
     Returns the winning genome and the statistics of the run.
     """
-    winner, stats = run_adaptive_des(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS)
+    winner, stats = run_adaptive_des(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS,
+                                     num_workers=12)
     print(f"adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT} done")
     return winner, stats
 
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     ENVIRONMENT = MultiTMazeEnv(MAZE_LENGTH)
 
     # Run! Only relevant to look at the winner.
-    WINNER = run(1000, ENVIRONMENT, VERSION)[0]
+    WINNER = run(500, ENVIRONMENT, VERSION)[0]
 
     print(WINNER)
 
@@ -80,8 +79,8 @@ if __name__ == '__main__':
     CPPN = neat.nn.DesFeedForwardNetwork.create(WINNER, CONFIG)
     NETWORK = AdaptiveDESNetwork(SUBSTRATE, CPPN, params(VERSION))
     NET = NETWORK.create_phenotype_network(CONFIG, 
-        filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
+        filename=f"pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_winner")
     draw_net(
-        CPPN, filename=f"pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
-    with open(f'pureples/experiments/t_maze/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
+        CPPN, filename=f"pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn")
+    with open(f'pureples/experiments/t_maze/results/adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}_cppn.pkl', 'wb') as output:
         pickle.dump(CPPN, output, pickle.HIGHEST_PROTOCOL)

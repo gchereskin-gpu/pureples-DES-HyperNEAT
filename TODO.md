@@ -35,11 +35,19 @@ TODO:
     - task:
         - agent must explore the maze and find the end, then navigate the maze again from the start, reach the end directly, and then navigate back to the start directly.
     
-    
+    - new task
+        - four independent deployments
+        - each deployment consists of 10 episodes
+        - in the first episode, the high reward is randomly placed
+        - in the second episode, the high reward stays in the same place
+        - in the third to ninth episodes, one random episode switches the location of the high reward
+        - in the 10th episode, the high reward does not switch
 
 
 * Code adaptivity and modulation for an Adaptive ES-HyperNEAT
     - 
+* Code adaptivity and modulation for ES-HyperNEAT
+    - Make the D coefficient of the learning rules constant based on the study's value
 
 * Code a t-maze runner file for adaptive ES-HyperNEAT
 
@@ -54,9 +62,12 @@ TODO:
 
 
 DoNow:
-why does the gym_runner argmax the ANN outputs?
+Update the reward and make T-maze "generation" static.
 
-code adaptive ES
+Coding Adaptive ES-HyperNEAT
+ - weights update based on modulated plasticity rules
+ - plasticity rules update weights based on std_activations
+ - modulation modulates plasticity based on mod_activations
 
 I'm trying to make a penalty for hitting the wall
 

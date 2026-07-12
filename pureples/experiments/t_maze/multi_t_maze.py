@@ -10,19 +10,30 @@ class MultiTMazeEnv(gym.Env):
         self.num_turns = num_turns
         self.ray_step = 0.05  # Distance increment for ray marching
         self.max_ray_distance = 2.0  # Maximum distance for each sensor ray
-        self.solved = False
+        self.reward_process_steps = 5 #TODO: make this an argument to be set in higher level code
+        self.reward = 0.0
+        self.switch_reward_episode = 0
+        self.reward_process_timestep = 0
+
 
     def reset(self, seed = None, options = None):
 
-        self.maze_points, self.goal_endpoint = self.generate_t_maze(self.num_turns)
+        self.maze_points, self.high_reward, self.low_rewards = self.generate_t_maze()
+
+        self.switch_reward_episode = random.randint(1, 5)
 
         self.current_position = [0.0, 0.0]
         self.rotation = 0.0
 
-        self.exploration = True  # Start in exploration mode
-        self.current_timestep = 0
+        self.current_episode = 0
+        self.episode_timestep = 0
+        self.reward_process_timestep = 0
 
         ob = self.observe()
+
+        self.hit_wall = False
+        self.last_reward = 0.0
+        self.reward = 0.0
 
         self.info = None
 
@@ -33,61 +44,87 @@ class MultiTMazeEnv(gym.Env):
 
         terminated, truncated = False, False
         reward = 0.0
-        self.solved = False
 
-        # The action is a 3-tuple: [left, forward, right].
-        left, forward, right = action
+        if self.reward_process_timestep == 0:
+            # The action is a 3-tuple: [left, forward, right].
+            left, forward, right = action
 
-        # Rotate the agent by 17 degrees for each unit of right-minus-left.
-        rotation_delta = 17.0 * (right - left)
-        self.rotation = (self.rotation + rotation_delta) % 360.0
+            # Rotate the agent by 17 degrees for each unit of right-minus-left.
+            rotation_delta = 17.0 * (right - left)
+            self.rotation = (self.rotation + rotation_delta) % 360.0
 
-        # Move forward in the new heading by forward/4 units.
-        old_position = self.current_position.copy()
-        heading_x = math.sin(math.radians(self.rotation))
-        heading_y = math.cos(math.radians(self.rotation))
-        self.current_position = [
-            self.current_position[0] + heading_x * (forward / 4.0),
-            self.current_position[1] + heading_y * (forward / 4.0),
-        ]
+            # Move forward in the new heading by forward/4 units.
+            old_position = self.current_position.copy()
+            heading_x = math.sin(math.radians(self.rotation))
+            heading_y = math.cos(math.radians(self.rotation))
+            self.current_position = [
+                self.current_position[0] + heading_x * (forward / 4.0),
+                self.current_position[1] + heading_y * (forward / 4.0),
+            ] #TODO: Normalize the forward so that the robot can move backwards or stop when forward is 0.5 or less
 
-        # If the new position leaves the maze path, undo the move and end the episode.
-        if not self.point_in_maze(self.current_position):
-            self.current_position = old_position
-            hit_wall = True
-        else:
-            hit_wall = False
+            # If the new position leaves the maze path, undo the move and end the episode.
+            if not self.point_in_maze(self.current_position):
+                self.current_position = old_position
+                self.hit_wall = True
+            else:
+                self.hit_wall = False
 
-        self.current_timestep += 1
+        # check if reached end of maze
+        high_reward = any(in_bounds(self.current_position, p) for p in self.high_reward)
+        low_reward = any(in_bounds(self.current_position, p) for p in self.low_rewards)
 
-        # Exploration and navigation trials use different time limits and reset rules.
-        if self.exploration:
-            # in exploration trial, max number of timesteps is 4 * 8n where n is number of turns
-            max_timesteps = 4 * 10 * self.num_turns + 1
-            if in_bounds(self.current_position, self.goal_endpoint) or self.current_timestep >= max_timesteps:
-                self.exploration = False
+        # process reward and/or end episode
+        if self.episode_timestep >= 30 or high_reward or low_reward:
+            # process reward
+            if self.reward_process_timestep < self.reward_process_steps:
+                self.reward = 1.0 if high_reward else 0.1 if low_reward else 0.0
+                ob = self.observe()
+                self.reward_process_timestep += 1
+
+            # move on to next episode if done processing reward
+            if self.reward_process_timestep >= self.reward_process_steps:
+                # end deployment if appropriate
+                if self.current_episode >= 9:
+                    terminated = True
+                
+                # reset agent
                 self.current_position = [0.0, 0.0]
                 self.rotation = 0.0
-                self.current_timestep = 0
-                if in_bounds(self.current_position, self.goal_endpoint):
-                    self.solved = True
-            reward = 0.0
+
+                # calculate fitness
+                if self.current_episode == 0:
+                    self.last_reward = self.reward
+                if self.current_episode > 0:
+                    if self.last_reward == 1.0 and self.reward == 1.0:
+                        reward = 1.0
+                    elif self.last_reward == 0.1 and self.reward == 0.1:
+                        reward = 0.1
+                    elif self.last_reward == 0.0:
+                        reward = 0.0
+                        self.last_reward = self.reward
+                    else:
+                        reward = 0.0
+                        self.last_reward = 0.0
+                self.reward = 0.0
+
+                # penalize wall collision
+                if self.hit_wall:
+                    reward -= 0.05
+                    self.hit_wall = False
+                
+                # switch reward sides if appropriate (always flip to the opposite arm)
+                if self.current_episode == self.switch_reward_episode:
+                    self.high_reward, self.low_rewards = self.low_rewards, self.high_reward #TODO: This will not work as intended if using longer than a single t-maze
+
+                self.current_episode += 1
+                self.episode_timestep = 0
+                self.reward_process_timestep = 0
         else:
-            # in navigation trial, max number of timesteps is 4 * 4n where n is number of turns
-            max_timesteps = 4 * 4 * self.num_turns + 3
-            if self.current_timestep >= max_timesteps:
-                terminated = True
-            # check if agent reached end of maze
-            if in_bounds(self.current_position, self.goal_endpoint):
-                reward = 1.0
-                terminated = True
-                self.solved = True
-            if hit_wall:
-                reward -= 0.1  # Penalize hitting walls
-
-        ob = self.observe()
-
+            ob = self.observe()
+            self.episode_timestep += 1
+            
         return ob, reward, terminated, truncated, self.info
+
 
     def observe(self):
         """Return a 7-element observation with five distance sensors, one mode value, and a reward value."""
@@ -111,14 +148,8 @@ class MultiTMazeEnv(gym.Env):
 
             ob.append(sensed_distance)
 
-        # The final mode value reports whether the next step belongs to exploration or navigation.
-        ob.append(0.0 if self.exploration else 1.0)
-
         # Append the reward value.
-        if self.solved:
-            ob.append(1.0)
-        else:
-            ob.append(0.0)
+        ob.append(self.reward)
 
         return ob
 
@@ -126,181 +157,51 @@ class MultiTMazeEnv(gym.Env):
         """Return True when the point lies inside any maze-path square."""
         return any(in_bounds(point, maze_point) for maze_point in self.maze_points)
 
-    def generate_t_maze(self, num_turns):
+    def generate_t_maze(self):
         """
+        Returns a single, static T-maze.
+
+        The maze is a stem rising from the origin to a T-junction, with a left
+        arm and a right arm. One of two reward layouts is chosen at random:
+        high reward on the left (low on the right), or high reward on the right
+        (low on the left).
+
         Returns:
             maze_points : list[(x, y)]
-                Every coordinate in the maze.
+                The centers of the seven 1x1 blocks making up the maze.
 
-            goal_endpoint : (x, y)
-                Randomly selected endpoint from the final T-junction.
+            high_reward : list[(x, y)]
+                A single coordinate for the high-reward block (coincides with
+                one arm's endpoint).
+
+            low_rewards : list[(x, y)]
+                A single coordinate for the low-reward block on the opposite arm.
         """
 
-        while True:  # restart if maze corners itself
+        # Stem (0,0)->(0,1)->(0,2), then left arm and right arm off the junction.
+        maze_points = [
+            (0, 0),
+            (0, 1),
+            (0, 2),
+            (-1, 2),
+            (-2, 2),
+            (1, 2),
+            (2, 2),
+        ]
 
-            points = {(0, 0)}
+        left_end = (-2, 2)
+        right_end = (2, 2)
 
-            # Cardinal directions
-            UP = (0, 1)
-            DOWN = (0, -1)
-            LEFT = (-1, 0)
-            RIGHT = (1, 0)
+        if random.random() < 0.5:
+            # High reward on the left, low reward on the right.
+            high_reward = [left_end]
+            low_rewards = [right_end]
+        else:
+            # High reward on the right, low reward on the left.
+            high_reward = [right_end]
+            low_rewards = [left_end]
 
-            DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
-
-            def add(p, d):
-                return (p[0] + d[0], p[1] + d[1])
-
-            def scale(d, k):
-                return (d[0] * k, d[1] * k)
-
-            def left_of(d):
-                return (-d[1], d[0])
-
-            def right_of(d):
-                return (d[1], -d[0])
-
-            def extend_two(start, direction):
-                """
-                Returns:
-                    [point1, point2]
-                """
-                p1 = add(start, direction)
-                p2 = add(p1, direction)
-                return [p1, p2]
-
-            def can_place_segment(start, direction):
-                """
-                Check whether the two-point extension would collide.
-                """
-                p1 = add(start, direction)
-                p2 = add(p1, direction)
-
-                if p1 in points:
-                    return False
-                if p2 in points:
-                    return False
-
-                return True
-
-            #
-            # FIRST T-JUNCTION
-            #
-
-            stem_dir = UP  # The first stem always points up.
-
-            if not can_place_segment((0, 0), stem_dir):
-                continue
-
-            stem = extend_two((0, 0), stem_dir)
-
-            points.update(stem)
-
-            junction = stem[-1]
-
-            perp1 = left_of(stem_dir)
-            perp2 = right_of(stem_dir)
-
-            if not can_place_segment(junction, perp1):
-                continue
-
-            if not can_place_segment(junction, perp2):
-                continue
-
-            arm1 = extend_two(junction, perp1)
-            arm2 = extend_two(junction, perp2)
-
-            points.update(arm1)
-            points.update(arm2)
-
-            active_endpoints = [
-                (arm1[-1], perp1),
-                (arm2[-1], perp2)
-            ]
-
-            #
-            # REMAINING T-JUNCTIONS
-            #
-
-            for _ in range(num_turns - 1):
-
-                possible_extensions = []
-
-                for endpoint, endpoint_dir in active_endpoints:
-
-                    for next_dir in (
-                        left_of(endpoint_dir),
-                        right_of(endpoint_dir)
-                    ):
-
-                        stem_ok = can_place_segment(endpoint, next_dir)
-
-                        if not stem_ok:
-                            continue
-
-                        future_junction = add(
-                            add(endpoint, next_dir),
-                            next_dir
-                        )
-
-                        branch1 = left_of(next_dir)
-                        branch2 = right_of(next_dir)
-
-                        if not can_place_segment(
-                            future_junction,
-                            branch1
-                        ):
-                            continue
-
-                        if not can_place_segment(
-                            future_junction,
-                            branch2
-                        ):
-                            continue
-
-                        possible_extensions.append(
-                            (endpoint, endpoint_dir, next_dir)
-                        )
-
-                #
-                # No legal move => restart entire maze
-                #
-
-                if not possible_extensions:
-                    break
-
-                endpoint, endpoint_dir, next_dir = random.choice(
-                    possible_extensions
-                )
-
-                stem = extend_two(endpoint, next_dir)
-
-                points.update(stem)
-
-                junction = stem[-1]
-
-                branch1 = left_of(next_dir)
-                branch2 = right_of(next_dir)
-
-                arm1 = extend_two(junction, branch1)
-                arm2 = extend_two(junction, branch2)
-
-                points.update(arm1)
-                points.update(arm2)
-
-                active_endpoints = [
-                    (arm1[-1], branch1),
-                    (arm2[-1], branch2)
-                ]
-
-            else:
-                #
-                # Successfully built all turns
-                #
-
-                goal_endpoint, _ = random.choice(active_endpoints)
-
-                return list(points), goal_endpoint
+        return maze_points, high_reward, low_rewards
 
 
     def visualize_maze(self, maze_points, goal_endpoint=None):
@@ -356,10 +257,10 @@ class MultiTMazeEnv(gym.Env):
 def in_bounds(current_position, maze_point):
     """
     Check if the current position is within the bounds (of +-0.5 in x and y directions) of the given maze point.
-    
+
     Returns T/F
     """
-    if current_position[0] >= maze_point[0] + 0.5 or current_position[1] >= maze_point[1] + 0.5 or current_position[0] <= maze_point[0] - 0.5 or current_position[1] <= maze_point[1] - 0.5:
-        return False
-
-    return True
+    return (
+        maze_point[0] - 0.5 < current_position[0] < maze_point[0] + 0.5
+        and maze_point[1] - 0.5 < current_position[1] < maze_point[1] + 0.5
+    )

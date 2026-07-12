@@ -5,6 +5,8 @@ Varying visualisation tools.
 import pickle
 import graphviz
 import matplotlib.pyplot as plt
+from matplotlib.widgets import CheckButtons, Button
+from matplotlib.patches import FancyArrowPatch
 import colorsys
 
 
@@ -115,35 +117,167 @@ def draw_es(id_to_coords, connections, filename):
     plt.grid()
     fig.savefig(filename)
 
-def draw_adaptive_des(id_to_coords, connections, filename):
+def _add_connection_arrow(ax, c, color, linestyle):
     """
-    Draw the net created by Adaptive DES-HyperNEAT
+    Draw a single connection as an arrow (standard -> solid, modulatory -> dashed)
+    and return the patch so its visibility can be toggled later.
     """
-    fig = plt.figure()
-    plt.axis([-1.1, 1.1, -1.1, 1.1])
-    fig.add_subplot(111)
+    patch = FancyArrowPatch(
+        (c.x1, c.y1), (c.x2, c.y2),
+        arrowstyle='-|>', mutation_scale=10,
+        color=color, linestyle=linestyle, linewidth=1.2,
+        shrinkA=3.0, shrinkB=3.0, zorder=1)
+    ax.add_patch(patch)
+    return patch
 
-    if connections:
-        # find the number of branches
-        num_branches = max(c.branch_id for c in connections) + 1
 
-        for c in connections:
-            plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.01, head_length=0.02,
-                    fc=hue_to_rgb(c.branch_id/num_branches),
-                    ec=hue_to_rgb(c.branch_id/num_branches),
-                    length_includes_head=True)
-        
-    # for c in connections:
-    #     plt.arrow(c.x1, c.y1, c.x2-c.x1, c.y2-c.y1, head_width=0.00, head_length=0.0,
-    #               fc=(hue_to_rgb(c.weight)[0], hue_to_rgb(c.weight)[1], hue_to_rgb(c.weight)[2]), 
-    #               ec=(hue_to_rgb(c.weight)[0], hue_to_rgb(c.weight)[1], hue_to_rgb(c.weight)[2]), 
-    #               length_includes_head=True)
+def _save_clean(fig, widget_axes, filename):
+    """
+    Save the figure to `filename` with the toggle panels hidden, so the saved
+    image contains only the network (reflecting the currently visible toggles).
+    """
+    prev = [a.get_visible() for a in widget_axes]
+    for a in widget_axes:
+        a.set_visible(False)
+    fig.savefig(filename, bbox_inches='tight')
+    for a, was_visible in zip(widget_axes, prev):
+        a.set_visible(was_visible)
+    fig.canvas.draw_idle()
+
+
+def draw_adaptive_es(id_to_coords, std_connections, mod_connections, filename):
+    """
+    Draw the net created by Adaptive ES-HyperNEAT.
+
+    Standard connections are solid, modulatory connections are dashed; every
+    connection is coloured black (positive weight) or red (negative weight).
+    Check buttons toggle the standard and modulatory connections on/off, and a
+    Save button writes the currently visible network to `filename`.
+    """
+    fig = plt.figure(figsize=(8, 7))
+    ax = fig.add_axes([0.28, 0.08, 0.68, 0.86])
+    ax.set_xlim(-1.1, 1.1)
+    ax.set_ylim(-1.1, 1.1)
+    ax.grid(True)
+    ax.set_title("Adaptive ES-HyperNEAT network")
+
+    # Group the drawn patches by connection type so they can be toggled together.
+    groups = {'standard': [], 'modulatory': []}
+    for c in std_connections:
+        color = 'black' if c.weight > 0.0 else 'red'
+        groups['standard'].append(_add_connection_arrow(ax, c, color, 'solid'))
+    for c in mod_connections:
+        color = 'black' if c.weight > 0.0 else 'red'
+        groups['modulatory'].append(_add_connection_arrow(ax, c, color, 'dashed'))
 
     for (coord, _) in id_to_coords.items():
-        plt.plot(coord[0], coord[1], marker='o', markersize=8.0, color='grey')
+        ax.plot(coord[0], coord[1], marker='o', markersize=8.0,
+                color='grey', zorder=2)
 
-    plt.grid()
-    fig.savefig(filename)
+    # Toggle panel: standard / modulatory connections.
+    type_labels = ['standard', 'modulatory']
+    type_ax = fig.add_axes([0.02, 0.60, 0.22, 0.18])
+    type_ax.set_title("Connections", fontsize=9)
+    type_check = CheckButtons(type_ax, type_labels, [True, True])
+
+    def toggle_type(label):
+        for patch in groups[label]:
+            patch.set_visible(not patch.get_visible())
+        fig.canvas.draw_idle()
+    type_check.on_clicked(toggle_type)
+
+    # Save button writes the currently visible network to `filename`.
+    save_ax = fig.add_axes([0.02, 0.08, 0.15, 0.06])
+    save_btn = Button(save_ax, 'Save PNG')
+    widget_axes = [type_ax, save_ax]
+    save_btn.on_clicked(lambda _event: _save_clean(fig, widget_axes, filename))
+
+    # Persist a default image (all connections visible) even when run headless.
+    _save_clean(fig, widget_axes, filename)
+    plt.show()
+
+
+def draw_adaptive_des(id_to_coords, std_connections, mod_connections, filename):
+    """
+    Draw the net created by Adaptive DES-HyperNEAT.
+
+    Standard connections are solid, modulatory connections are dashed; every
+    connection is coloured by the branch it belongs to. Check buttons toggle
+    each branch on/off and, separately, the standard and modulatory connections;
+    a connection is shown only when both its branch and its type are enabled. A
+    Save button writes the currently visible network to `filename`.
+    """
+    all_connections = list(std_connections) + list(mod_connections)
+
+    fig = plt.figure(figsize=(8, 7))
+    ax = fig.add_axes([0.28, 0.08, 0.68, 0.86])
+    ax.set_xlim(-1.1, 1.1)
+    ax.set_ylim(-1.1, 1.1)
+    ax.grid(True)
+    ax.set_title("Adaptive DES-HyperNEAT network")
+
+    num_branches = int(max((c.branch_id for c in all_connections), default=-1)) + 1
+
+    def branch_color(branch_id):
+        return hue_to_rgb(branch_id / num_branches) if num_branches > 0 else (0.0, 0.0, 0.0)
+
+    # Each entry pairs a patch with the (branch_id, type) that controls it.
+    patches = []
+    for c in std_connections:
+        patch = _add_connection_arrow(ax, c, branch_color(c.branch_id), 'solid')
+        patches.append((patch, int(c.branch_id), 'standard'))
+    for c in mod_connections:
+        patch = _add_connection_arrow(ax, c, branch_color(c.branch_id), 'dashed')
+        patches.append((patch, int(c.branch_id), 'modulatory'))
+
+    for (coord, _) in id_to_coords.items():
+        ax.plot(coord[0], coord[1], marker='o', markersize=8.0,
+                color='grey', zorder=2)
+
+    # Combined visibility state: a connection shows only when both its branch
+    # and its type are enabled.
+    branch_on = [True] * num_branches
+    type_on = {'standard': True, 'modulatory': True}
+
+    def refresh():
+        for patch, branch_id, conn_type in patches:
+            patch.set_visible(branch_on[branch_id] and type_on[conn_type])
+        fig.canvas.draw_idle()
+
+    # Toggle panel: one check button per branch (labels coloured to match).
+    branch_labels = [f"branch {i}" for i in range(num_branches)]
+    branch_ax = fig.add_axes([0.02, 0.42, 0.22, 0.40])
+    branch_ax.set_title("Branches", fontsize=9)
+    branch_check = CheckButtons(branch_ax, branch_labels, [True] * num_branches)
+    for i, text in enumerate(branch_check.labels):
+        text.set_color(branch_color(i))
+
+    def toggle_branch(label):
+        branch_on[branch_labels.index(label)] ^= True
+        refresh()
+    branch_check.on_clicked(toggle_branch)
+
+    # Toggle panel: standard / modulatory connections.
+    type_labels = ['standard', 'modulatory']
+    type_ax = fig.add_axes([0.02, 0.22, 0.22, 0.14])
+    type_ax.set_title("Connections", fontsize=9)
+    type_check = CheckButtons(type_ax, type_labels, [True, True])
+
+    def toggle_type(label):
+        type_on[label] ^= True
+        refresh()
+    type_check.on_clicked(toggle_type)
+
+    # Save button writes the currently visible network to `filename`.
+    save_ax = fig.add_axes([0.02, 0.08, 0.15, 0.06])
+    save_btn = Button(save_ax, 'Save PNG')
+    widget_axes = [branch_ax, type_ax, save_ax]
+    save_btn.on_clicked(lambda _event: _save_clean(fig, widget_axes, filename))
+
+    # Persist a default image (all connections visible) even when run headless.
+    _save_clean(fig, widget_axes, filename)
+    plt.show()
+
 
 def hue_to_rgb(h):
     """
