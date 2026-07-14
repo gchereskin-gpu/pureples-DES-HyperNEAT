@@ -16,7 +16,7 @@ from pureples.shared.gym_runner import run_adaptive_des
 from pureples.des_hyperneat import AdaptiveDESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
-VERSION = "L"
+VERSION = "M"
 VERSION_TEXT = "small" if VERSION == "S" else "medium" if VERSION == "M" else "large"
 
 MAZE_LENGTH = 1
@@ -24,7 +24,7 @@ MAZE_LENGTH_TEXT = "1_turn" if MAZE_LENGTH == 1 else str(MAZE_LENGTH) + "_turns"
 
 NUM_DEPLOYMENTS = 4
 
-NUM_RUNS = 2
+NUM_RUNS = 30
 
 # Maximum number of generations per evolutionary run (also the length the
 # per-run fitness series are padded to for the multi-run study).
