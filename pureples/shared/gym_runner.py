@@ -44,6 +44,12 @@ def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, tria
 
     fitnesses = []
 
+    # Start a fresh switch-episode cycle so this genome's deployments draw
+    # distinct switch timings (no-op for envs without the hook, e.g. non-maze).
+    reset_switch_history = getattr(env, "reset_switch_history", None)
+    if callable(reset_switch_history):
+        reset_switch_history()
+
     for _ in range(trials):
         ob = env.reset()[0]
         net.reset()
@@ -91,6 +97,12 @@ def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trial
     net = network.create_phenotype_network()
 
     fitnesses = []
+
+    # Start a fresh switch-episode cycle so this genome's deployments draw
+    # distinct switch timings (no-op for envs without the hook, e.g. non-maze).
+    reset_switch_history = getattr(env, "reset_switch_history", None)
+    if callable(reset_switch_history):
+        reset_switch_history()
 
     for _ in range(trials):
         ob = env.reset()[0]

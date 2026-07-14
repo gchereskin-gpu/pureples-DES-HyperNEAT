@@ -1,3 +1,4 @@
+import os
 import math
 import random
 import matplotlib.pyplot as plt
@@ -15,12 +16,19 @@ class MultiTMazeEnv(gym.Env):
         self.switch_reward_episode = 0
         self.reward_process_timestep = 0
 
+        # Switch episodes already used by earlier deployments in the current
+        # evaluation. Each reset() draws a switch episode not in this set so a
+        # genome is tested against distinct switch timings across its
+        # deployments; call reset_switch_history() to start a fresh cycle.
+        self.switch_episode_range = (1, 5)
+        self._used_switch_episodes = set()
+
 
     def reset(self, seed = None, options = None):
 
         self.maze_points, self.high_reward, self.low_rewards = self.generate_t_maze()
 
-        self.switch_reward_episode = random.randint(1, 5)
+        self.switch_reward_episode = self._choose_switch_episode()
 
         self.current_position = [0.0, 0.0]
         self.rotation = 0.0
@@ -39,6 +47,40 @@ class MultiTMazeEnv(gym.Env):
 
         return ob, self.info
 
+    def reset_switch_history(self):
+        """
+        Forget which switch episodes earlier deployments used.
+
+        Call this at the start of each genome's deployment sequence so the
+        "no repeated switch episode across deployments" guarantee applies per
+        evaluation rather than globally (a single env instance is reused for
+        many genomes within a worker).
+        """
+        self._used_switch_episodes = set()
+
+    def _choose_switch_episode(self):
+        """
+        Pick the episode at which the reward arms swap, without reusing a switch
+        episode already drawn by an earlier deployment in this evaluation.
+
+        Switch episodes are drawn without replacement from
+        ``switch_episode_range`` (inclusive). Once every episode in the range has
+        been used, the history is cleared and a fresh cycle begins so sampling
+        can continue when there are more deployments than distinct episodes.
+        """
+        low, high = self.switch_episode_range
+        options = [e for e in range(low, high + 1)
+                   if e not in self._used_switch_episodes]
+        if not options:
+            # Every switch episode has been used since the last history reset;
+            # start a new cycle so distinct sampling can continue.
+            self._used_switch_episodes = set()
+            options = list(range(low, high + 1))
+
+        choice = random.choice(options)
+        self._used_switch_episodes.add(choice)
+        return choice
+
     def step(self, action):
         """Advance the agent one step through the maze using the supplied action."""
 
@@ -50,7 +92,7 @@ class MultiTMazeEnv(gym.Env):
             left, forward, right = action
 
             # Rotate the agent by 17 degrees for each unit of right-minus-left.
-            rotation_delta = 17.0 * (right - left)
+            rotation_delta = 20.0 * (right - left)
             self.rotation = (self.rotation + rotation_delta) % 360.0
 
             # Move forward in the new heading by forward/4 units.
@@ -264,3 +306,90 @@ def in_bounds(current_position, maze_point):
         maze_point[0] - 0.5 < current_position[0] < maze_point[0] + 0.5
         and maze_point[1] - 0.5 < current_position[1] < maze_point[1] + 0.5
     )
+
+
+def draw_tmaze_frame(state, ax, title):
+    """Render a single captured T-maze state onto ``ax`` (one animation frame)."""
+    ax.clear()
+
+    maze_points = state["maze"]
+    xs = [p[0] for p in maze_points]
+    ys = [p[1] for p in maze_points]
+    ax.set_xlim(min(xs) - 2, max(xs) + 2)
+    ax.set_ylim(min(ys) - 2, max(ys) + 2)
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.35)
+
+    # Maze blocks.
+    for x, y in maze_points:
+        ax.add_patch(Rectangle((x - 0.5, y - 0.5), 1, 1, facecolor="white", edgecolor="black"))
+
+    # Reward locations: green star = high reward, orange star = low reward.
+    # These swap arms mid-deployment, so watching the agent track the green star
+    # is what verifies it adapts after the switch.
+    for x, y in state["high_reward"]:
+        ax.scatter(x, y, color="green", s=220, marker="*", zorder=3, label="High reward")
+    for x, y in state["low_rewards"]:
+        ax.scatter(x, y, color="orange", s=140, marker="*", zorder=3, label="Low reward")
+
+    # Agent position and heading.
+    px, py = state["current_position"]
+    ax.scatter(px, py, color="blue", s=120, zorder=4, label="Agent")
+    heading_x = math.sin(math.radians(state["rotation"]))
+    heading_y = math.cos(math.radians(state["rotation"]))
+    ax.plot([px, px + heading_x * 0.5], [py, py + heading_y * 0.5],
+            color="red", linewidth=2, zorder=4)
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(f"{title} — episode {state['episode']}")
+    ax.legend(loc="upper right")
+
+
+def save_run_gif(net, env, gif_path, title, fps=4, max_steps=600):
+    """
+    Roll out ``net`` on ``env`` for a single deployment and save a gif of the run.
+
+    Uses one activation per step, matching how the adaptive networks are
+    evaluated during evolution. Each step captures the maze, the agent's pose,
+    and the (switching) reward locations so the whole deployment -- including the
+    behaviour across the mid-deployment reward switch -- is visible.
+    """
+    os.makedirs(os.path.dirname(gif_path), exist_ok=True)
+
+    ob, _ = env.reset()
+    net.reset()
+
+    states = []
+    for _ in range(max_steps):
+        ob, _reward, terminated, truncated, _ = env.step(net.activate(ob))
+        states.append({
+            "maze": list(env.maze_points),
+            "current_position": list(env.current_position),
+            "rotation": env.rotation,
+            "high_reward": list(env.high_reward),
+            "low_rewards": list(env.low_rewards),
+            "episode": env.current_episode,
+        })
+        if terminated or truncated:
+            break
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    try:
+        from matplotlib.animation import FuncAnimation
+
+        def update(frame):
+            draw_tmaze_frame(states[frame], ax, title)
+            return ax
+
+        animation = FuncAnimation(fig, update, frames=len(states), interval=1000 / fps, blit=False)
+        animation.save(gif_path, writer="pillow", fps=fps)
+        print(f"Saved animation to {gif_path}")
+    except Exception as exc:  # visualization is best-effort; fall back to a still
+        fallback_path = gif_path.replace(".gif", ".png")
+        if states:
+            draw_tmaze_frame(states[-1], ax, title)
+        fig.savefig(fallback_path)
+        print(f"Could not save animation ({exc}); saved a still image to {fallback_path}")
+    finally:
+        plt.close(fig)

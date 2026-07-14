@@ -280,9 +280,14 @@ class AdaptiveESNetwork:
         activation_functions = neat.activations.ActivationFunctionSet()
         self.activation = activation_functions.get(params["activation"])
 
-    def create_phenotype_network(self, filename=None):
+    def create_phenotype_network(self, filename=None, show=True):
         """
-        Create a RecurrentNetwork using the ES-HyperNEAT approach.
+        Create a RecurrentNetwork using the Adaptive ES-HyperNEAT approach.
+
+        When `filename` is given the network image is written to it. Pass
+        `show=False` to build (and save) the interactive figure without opening
+        the blocking window, so the caller can save further outputs first and
+        display the window later via `matplotlib.pyplot.show()`.
         """
         input_coordinates = self.substrate.input_coordinates
         output_coordinates = self.substrate.output_coordinates
@@ -357,7 +362,7 @@ class AdaptiveESNetwork:
 
         # Visualize the network?
         if filename is not None:
-            draw_adaptive_es(coords_to_id, draw_std_connections, draw_mod_connections, filename)
+            draw_adaptive_es(coords_to_id, draw_std_connections, draw_mod_connections, filename, show=show)
 
         # This is actually a feedforward network.
         return neat.nn.recurrent.AdaptiveESRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight)

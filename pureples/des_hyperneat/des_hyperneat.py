@@ -329,9 +329,14 @@ class AdaptiveDESNetwork:
         activation_functions = neat.activations.ActivationFunctionSet()
         self.activation = activation_functions.get(params["activation"])
 
-    def create_phenotype_network(self, config, filename=None):
+    def create_phenotype_network(self, config, filename=None, show=True):
         """
         Create an AdaptiveRecurrentNetwork using the Adaptive DES-HyperNEAT approach.
+
+        When `filename` is given the network image is written to it. Pass
+        `show=False` to build (and save) the interactive figure without opening
+        the blocking window, so the caller can save further outputs first and
+        display the window later via `matplotlib.pyplot.show()`.
         """
 
         input_coordinates = self.substrate.input_coordinates
@@ -421,7 +426,7 @@ class AdaptiveDESNetwork:
             draw_mod_connections = [mod_link for mod_links in mod_conns.values()
                                     for mod_link in mod_links
                                     if (mod_link.x1, mod_link.y1, mod_link.x2, mod_link.y2) in std_keys]
-            draw_adaptive_des(coords_to_id, draw_std_connections, draw_mod_connections, filename)
+            draw_adaptive_des(coords_to_id, draw_std_connections, draw_mod_connections, filename, show=show)
 
         # This is actually a feedforward network.
         return neat.nn.AdaptiveRecurrentNetwork(input_nodes, output_nodes, node_evals, self.max_weight, num_branches)

@@ -2,6 +2,7 @@
 Varying visualisation tools.
 """
 
+import os
 import pickle
 import graphviz
 import matplotlib.pyplot as plt
@@ -145,7 +146,7 @@ def _save_clean(fig, widget_axes, filename):
     fig.canvas.draw_idle()
 
 
-def draw_adaptive_es(id_to_coords, std_connections, mod_connections, filename):
+def draw_adaptive_es(id_to_coords, std_connections, mod_connections, filename, show=True):
     """
     Draw the net created by Adaptive ES-HyperNEAT.
 
@@ -153,11 +154,16 @@ def draw_adaptive_es(id_to_coords, std_connections, mod_connections, filename):
     connection is coloured black (positive weight) or red (negative weight).
     Check buttons toggle the standard and modulatory connections on/off, and a
     Save button writes the currently visible network to `filename`.
+
+    The default image is written to `filename` immediately. When `show` is True
+    the interactive window is opened here (blocking); when False the built figure
+    is returned so the caller can save other outputs first and display it later
+    (e.g. via `plt.show()`).
     """
     fig = plt.figure(figsize=(8, 7))
     ax = fig.add_axes([0.28, 0.08, 0.68, 0.86])
     ax.set_xlim(-1.1, 1.1)
-    ax.set_ylim(-1.1, 1.1)
+    ax.set_ylim(-1.25, 1.1)
     ax.grid(True)
     ax.set_title("Adaptive ES-HyperNEAT network")
 
@@ -194,10 +200,18 @@ def draw_adaptive_es(id_to_coords, std_connections, mod_connections, filename):
 
     # Persist a default image (all connections visible) even when run headless.
     _save_clean(fig, widget_axes, filename)
-    plt.show()
+
+    # Keep the widgets alive so their callbacks still fire if the window is
+    # displayed later by the caller (they would otherwise be garbage-collected
+    # once this function returns).
+    fig._interactive_widgets = [type_check, save_btn]
+
+    if show:
+        plt.show()
+    return fig
 
 
-def draw_adaptive_des(id_to_coords, std_connections, mod_connections, filename):
+def draw_adaptive_des(id_to_coords, std_connections, mod_connections, filename, show=True):
     """
     Draw the net created by Adaptive DES-HyperNEAT.
 
@@ -206,13 +220,18 @@ def draw_adaptive_des(id_to_coords, std_connections, mod_connections, filename):
     each branch on/off and, separately, the standard and modulatory connections;
     a connection is shown only when both its branch and its type are enabled. A
     Save button writes the currently visible network to `filename`.
+
+    The default image is written to `filename` immediately. When `show` is True
+    the interactive window is opened here (blocking); when False the built figure
+    is returned so the caller can save other outputs first and display it later
+    (e.g. via `plt.show()`).
     """
     all_connections = list(std_connections) + list(mod_connections)
 
     fig = plt.figure(figsize=(8, 7))
     ax = fig.add_axes([0.28, 0.08, 0.68, 0.86])
     ax.set_xlim(-1.1, 1.1)
-    ax.set_ylim(-1.1, 1.1)
+    ax.set_ylim(-1.25, 1.1)
     ax.grid(True)
     ax.set_title("Adaptive DES-HyperNEAT network")
 
@@ -276,7 +295,15 @@ def draw_adaptive_des(id_to_coords, std_connections, mod_connections, filename):
 
     # Persist a default image (all connections visible) even when run headless.
     _save_clean(fig, widget_axes, filename)
-    plt.show()
+
+    # Keep the widgets alive so their callbacks still fire if the window is
+    # displayed later by the caller (they would otherwise be garbage-collected
+    # once this function returns).
+    fig._interactive_widgets = [branch_check, type_check, save_btn]
+
+    if show:
+        plt.show()
+    return fig
 
 
 def hue_to_rgb(h):
@@ -285,3 +312,41 @@ def hue_to_rgb(h):
     """
     r, g, b = colorsys.hsv_to_rgb(h, 1.0, 1.0)
     return (r, g, b)
+
+
+def plot_fitness_stats(statistics, filename, title="Fitness over generations"):
+    """
+    Plot the evolution of the population's fitness across generations.
+
+    Draws the per-generation mean fitness as a line with a +/-1 standard-deviation
+    band around it, and overlays a dot for each generation's best fitness. Saves
+    the figure to `filename` (no interactive window).
+
+    `statistics` is a neat StatisticsReporter (as returned by the gym runners).
+    """
+    generations = list(range(len(statistics.most_fit_genomes)))
+    best_fitness = [g.fitness for g in statistics.most_fit_genomes]
+    mean_fitness = statistics.get_fitness_mean()
+    stdev_fitness = statistics.get_fitness_stdev()
+    lower = [m - s for m, s in zip(mean_fitness, stdev_fitness)]
+    upper = [m + s for m, s in zip(mean_fitness, stdev_fitness)]
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.fill_between(generations, lower, upper, color="tab:blue", alpha=0.2,
+                    label="±1 std dev")
+    ax.plot(generations, mean_fitness, color="tab:blue", linewidth=1.5,
+            label="Mean fitness")
+    ax.scatter(generations, best_fitness, color="tab:red", s=16, zorder=3,
+               label="Best fitness")
+
+    ax.set_xlabel("Generation")
+    ax.set_ylabel("Fitness")
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best")
+
+    directory = os.path.dirname(filename)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    fig.savefig(filename, bbox_inches="tight")
+    plt.close(fig)
