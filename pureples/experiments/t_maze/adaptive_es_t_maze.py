@@ -24,8 +24,8 @@ from pureples.experiments.t_maze.multi_t_maze import (
 from pureples.experiments.t_maze import study
 from pureples.shared.visualize import draw_net, plot_fitness_stats
 from pureples.shared.substrate import Substrate
-from pureples.shared.gym_runner import run_adaptive_des
-from pureples.des_hyperneat import AdaptiveDESNetwork
+from pureples.shared.gym_runner import run_adaptive_es
+from pureples.es_hyperneat import AdaptiveESNetwork
 
 # S, M or L; Small, Medium or Large (logic implemented as "Not 'S' or 'M' then Large").
 VERSION = "M"
@@ -67,8 +67,8 @@ def params(version):
             "activation": "sigmoid"}
 
 
-# Config for CPPN.
-CONFIG = neat.config.Config(neat.genome.AdaptiveDesGenome, neat.reproduction.DesReproduction,
+# Config for CPPN. 
+CONFIG = neat.config.Config(neat.genome.AdaptiveDefaultGenome, neat.reproduction.DefaultReproduction,
                             neat.species.DefaultSpeciesSet, neat.stagnation.DefaultStagnation,
                             'pureples/experiments/t_maze/config_cppn_t_maze')
 
@@ -78,22 +78,28 @@ def run(gens, env, version):
     Run the pole balancing task using the Gym environment
     Returns the winning genome and the statistics of the run.
     """
-    winner, stats = run_adaptive_des(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS,
-                                     num_workers=12, schedule_sampler=sample_generation_schedule)
-    print(f"adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT} done")
+    winner, stats = run_adaptive_es(gens, env, 500, CONFIG, params(version), SUBSTRATE, NUM_DEPLOYMENTS,
+                                    num_workers=12, schedule_sampler=sample_generation_schedule)
+    print(f"adaptive_es_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT} done")
     return winner, stats
 
 
 def std_connection_an_products(net):
     """
-    Yield the A*n product for every standard connection in an Adaptive DES
-    phenotype network. Each link in ``net.node_evals`` is
-    ``(in_id, weight, branch_id, a, b, c, d, n, mod_weights)``, so ``a`` and
-    ``n`` are at indices 3 and 7.
+    Yield the A*n product for every standard connection in an Adaptive ES
+    phenotype network. Each node_eval is
+    ``(node, activation, aggregation, bias, response, std_links, mod_links)``
+    and each standard link is ``(in_id, weight, a, b, c, d, n)`` (std_links may
+    be None), so ``a`` and ``n`` are at indices 2 and 6.
     """
-    return [link[3] * link[7]
-            for _, _, _, _, _, links in net.node_evals
-            for link in links]
+    products = []
+    for node_eval in net.node_evals:
+        std_links = node_eval[5]
+        if not std_links:
+            continue
+        for link in std_links:
+            products.append(link[2] * link[6])
+    return products
 
 
 # If run as script.
@@ -103,7 +109,7 @@ if __name__ == '__main__':
     LOGGER.setLevel(logging.INFO)
     ENVIRONMENT = MultiTMazeEnv(MAZE_LENGTH)
 
-    BASE_NAME = f"adaptive_des_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}"
+    BASE_NAME = f"adaptive_es_hyperneat_t_maze_{MAZE_LENGTH_TEXT}_{VERSION_TEXT}"
     RESULTS_DIR = "pureples/experiments/t_maze/results"
     DATA_DIR = f"{RESULTS_DIR}/{BASE_NAME}_data"
 
@@ -128,9 +134,9 @@ if __name__ == '__main__':
         plot_fitness_stats(stats, f"{prefix}_fitness.png",
                            title=f"{network_title} — fitness over generations")
 
-        cppn = neat.nn.DesFeedForwardNetwork.create(winner, CONFIG)
-        network = AdaptiveDESNetwork(SUBSTRATE, cppn, params(VERSION))
-        net = network.create_phenotype_network(CONFIG, filename=f"{prefix}_winner", show=False)
+        cppn = neat.nn.FeedForwardNetwork.create(winner, CONFIG)
+        network = AdaptiveESNetwork(SUBSTRATE, cppn, params(VERSION))
+        net = network.create_phenotype_network(filename=f"{prefix}_winner", show=False)
 
         draw_net(cppn, filename=f"{prefix}_cppn")
         with open(f"{prefix}_cppn.pkl", 'wb') as output:
@@ -158,7 +164,7 @@ if __name__ == '__main__':
         WINNER, STATS = run(MAX_GENERATIONS, ENVIRONMENT, VERSION)
         print(WINNER)
         save_standard_outputs(WINNER, STATS[0], f"{RESULTS_DIR}/{BASE_NAME}",
-                              "Adaptive DES T-Maze", save_gif=True)
+                              "Adaptive ES T-Maze", save_gif=True)
         plt.show()
     else:
         # Multi-run study: run NUM_RUNS evolutions, saving per-run data only for
@@ -166,7 +172,7 @@ if __name__ == '__main__':
         os.makedirs(DATA_DIR, exist_ok=True)
         records = []
         for run_number in range(1, NUM_RUNS + 1):
-            print(f"=== Adaptive DES T-Maze: run {run_number} of {NUM_RUNS} ===")
+            print(f"=== Adaptive ES T-Maze: run {run_number} of {NUM_RUNS} ===")
             winner, stats_tuple = run(MAX_GENERATIONS, ENVIRONMENT, VERSION)
             stats = stats_tuple[0]
 
@@ -178,7 +184,7 @@ if __name__ == '__main__':
             run_prefix = f"{DATA_DIR}/{BASE_NAME}_run{run_number}"
             # No gif: multi-run studies (NUM_RUNS > 1) never write .gif files.
             net, _cppn, test_means = save_standard_outputs(
-                winner, stats, run_prefix, f"Adaptive DES T-Maze run {run_number}")
+                winner, stats, run_prefix, f"Adaptive ES T-Maze run {run_number}")
 
             mean_series, best_series = study.padded_fitness_series(stats, MAX_GENERATIONS)
             mean_an, inhibitory, excitatory = study.connection_sign_metrics(
@@ -192,13 +198,12 @@ if __name__ == '__main__':
                 inhibitory_count=inhibitory,
                 excitatory_count=excitatory,
                 cppn_connection_count=study.count_cppn_connections(winner),
-                num_branches=net.num_branches,
                 all_switch_fitness=test_means[0],
                 double_switch_fitness=test_means[1],
                 delayed_feedback_fitness=test_means[2],
             )
             study.write_run_report(f"{run_prefix}_data.txt", record, MAX_GENERATIONS,
-                                   title="Adaptive DES T-Maze")
+                                   title="Adaptive ES T-Maze")
             records.append(record)
 
             # Release the (never-shown) network figure before the next run.
@@ -208,7 +213,7 @@ if __name__ == '__main__':
             graph_path=f"{DATA_DIR}/{BASE_NAME}_summary_fitness.png",
             text_path=f"{DATA_DIR}/{BASE_NAME}_summary.txt",
             records=records, total_runs=NUM_RUNS,
-            max_generations=MAX_GENERATIONS, title="Adaptive DES T-Maze")
+            max_generations=MAX_GENERATIONS, title="Adaptive ES T-Maze")
 
         print(f"Study complete: {len(records)} of {NUM_RUNS} run(s) solved the "
               f"task and were saved to {DATA_DIR}.")

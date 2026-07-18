@@ -51,7 +51,12 @@ TODO:
 
 * Code a t-maze runner file for adaptive ES-HyperNEAT
 
-
+Final details:
+* make the task switches choose from odd episode numbers (switch on episode 3, 7)
+* control the randomized initializations (4 total deployments)
+* update reward values to 1 and 2 - EACH sequential reward
+* generalization test: test the winning ANN on generalization t-maze, where the switch happens on a previously unused episode (4 and 6)
+* new fitness threshold over 4 deployments is 17
 
 
 6/11: 11:45 - 1:30

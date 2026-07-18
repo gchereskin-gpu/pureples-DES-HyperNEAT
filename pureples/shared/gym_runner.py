@@ -31,12 +31,21 @@ def _init_adaptive_des_worker(env_factory):
     _WORKER_ENV = env_factory()
 
 
-def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, trials, env):
+def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, trials, env,
+                              schedule_sampler=None):
     """
     Evaluate a single genome for Adaptive DES-HyperNEAT and return its fitness.
 
     Defined at module level (rather than as a closure) so it can be pickled and
     dispatched to worker processes by neat's ParallelEvaluator.
+
+    ``schedule_sampler`` is an optional zero-argument callable. When supplied
+    (and the env exposes ``set_training_schedule``), a *fresh* deployment
+    schedule is sampled for this genome and applied, so every genome is
+    evaluated on its own independently sampled set of deployments -- matching the
+    Adaptive ES path (see _eval_adaptive_es_genome). When None, the env's
+    existing schedule is reused and only its deployment cycle is restarted (the
+    original behaviour).
     """
     cppn = neat.nn.DesFeedForwardNetwork.create(genome, config)
     network = AdaptiveDESNetwork(substrate, cppn, params)
@@ -44,11 +53,17 @@ def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, tria
 
     fitnesses = []
 
-    # Start a fresh switch-episode cycle so this genome's deployments draw
-    # distinct switch timings (no-op for envs without the hook, e.g. non-maze).
-    reset_switch_history = getattr(env, "reset_switch_history", None)
-    if callable(reset_switch_history):
-        reset_switch_history()
+    # Per-genome scheduling: with a sampler, draw a fresh set of deployments for
+    # this genome and apply it (set_training_schedule also restarts the
+    # deployment cycle). Without one, just restart the env's existing cycle so
+    # the genome's deployments start at the first variation. Both are no-ops for
+    # envs lacking the hooks (e.g. non-maze).
+    if schedule_sampler is not None and hasattr(env, "set_training_schedule"):
+        env.set_training_schedule(schedule_sampler())
+    else:
+        reset_switch_history = getattr(env, "reset_switch_history", None)
+        if callable(reset_switch_history):
+            reset_switch_history()
 
     for _ in range(trials):
         ob = env.reset()[0]
@@ -59,12 +74,10 @@ def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, tria
 
         for _ in range(max_steps):
             action = net.activate(ob)
-
             ob, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
             total_reward += reward
             if done:
-                net.activate(ob)  # Final activation to update internal state / process reward signals.
                 break
 
         fitnesses.append(total_reward)
@@ -72,25 +85,37 @@ def _eval_adaptive_des_genome(genome, config, substrate, params, max_steps, tria
     return float(np.array(fitnesses).mean())
 
 
-def _eval_adaptive_des_genome_worker(genome, config, substrate, params, max_steps, trials):
+def _eval_adaptive_des_genome_worker(genome, config, *, substrate, params, max_steps, trials,
+                                     schedule_sampler=None):
     """
     ParallelEvaluator entry point: evaluate a genome using the per-worker env.
 
     ParallelEvaluator calls this with ``(genome, config)`` (the remaining args are
     bound via functools.partial). The env can't be pickled and shipped from the
     parent, so it's built once per worker in ``_init_adaptive_des_worker`` and read
-    here from the module global.
+    here from the module global. ``schedule_sampler`` is bound at partial time and
+    invoked fresh for each genome (see _eval_adaptive_des_genome), matching the
+    Adaptive ES path.
     """
     return _eval_adaptive_des_genome(genome, config, substrate, params,
-                                     max_steps, trials, _WORKER_ENV)
+                                     max_steps, trials, _WORKER_ENV, schedule_sampler)
 
 
-def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trials, env):
+def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trials, env,
+                             schedule_sampler=None):
     """
     Evaluate a single genome for Adaptive ES-HyperNEAT and return its fitness.
 
     Defined at module level (rather than as a closure) so it can be pickled and
     dispatched to worker processes by neat's ParallelEvaluator.
+
+    ``schedule_sampler`` is an optional zero-argument callable. When supplied
+    (and the env exposes ``set_training_schedule``), a *fresh* deployment
+    schedule is sampled for this genome and applied, so every genome is
+    evaluated on its own independently sampled set of deployments (the Adaptive
+    DES path uses the same per-genome scheme). When None, the env's existing
+    schedule is reused and only its deployment cycle is restarted (the original
+    behaviour).
     """
     cppn = neat.nn.FeedForwardNetwork.create(genome, config)
     network = AdaptiveESNetwork(substrate, cppn, params)
@@ -98,11 +123,17 @@ def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trial
 
     fitnesses = []
 
-    # Start a fresh switch-episode cycle so this genome's deployments draw
-    # distinct switch timings (no-op for envs without the hook, e.g. non-maze).
-    reset_switch_history = getattr(env, "reset_switch_history", None)
-    if callable(reset_switch_history):
-        reset_switch_history()
+    # Per-genome scheduling: with a sampler, draw a fresh set of deployments for
+    # this genome and apply it (set_training_schedule also restarts the
+    # deployment cycle). Without one, just restart the env's existing cycle so
+    # the genome's deployments start at the first variation. Both are no-ops for
+    # envs lacking the hooks (e.g. non-maze).
+    if schedule_sampler is not None and hasattr(env, "set_training_schedule"):
+        env.set_training_schedule(schedule_sampler())
+    else:
+        reset_switch_history = getattr(env, "reset_switch_history", None)
+        if callable(reset_switch_history):
+            reset_switch_history()
 
     for _ in range(trials):
         ob = env.reset()[0]
@@ -123,17 +154,19 @@ def _eval_adaptive_es_genome(genome, config, substrate, params, max_steps, trial
     return float(np.array(fitnesses).mean())
 
 
-def _eval_adaptive_es_genome_worker(genome, config, substrate, params, max_steps, trials):
+def _eval_adaptive_es_genome_worker(genome, config, *, substrate, params, max_steps, trials,
+                                    schedule_sampler=None):
     """
     ParallelEvaluator entry point: evaluate a genome using the per-worker env.
 
     ParallelEvaluator calls this with ``(genome, config)`` (the remaining args are
     bound via functools.partial). The env can't be pickled and shipped from the
     parent, so it's built once per worker in ``_init_adaptive_des_worker`` and read
-    here from the module global.
+    here from the module global. ``schedule_sampler`` is bound at partial time and
+    invoked fresh for each genome (see _eval_adaptive_es_genome).
     """
     return _eval_adaptive_es_genome(genome, config, substrate, params,
-                                    max_steps, trials, _WORKER_ENV)
+                                    max_steps, trials, _WORKER_ENV, schedule_sampler)
 
 
 def ini_pop(state, stats, config, output):
@@ -157,7 +190,7 @@ def ini_desPop(state, stats, config, output):
     return pop
 
 def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deployments=10,
-                     max_trials=0, output=True, num_workers=None):
+                     max_trials=0, output=True, num_workers=None, schedule_sampler=None):
     """
     Generic OpenAI Gym runner for Adaptive DES-HyperNEAT.
 
@@ -165,6 +198,13 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deploy
     ParallelEvaluator. ``num_workers`` controls the size of the process pool and
     defaults to ``os.cpu_count()``. Pass ``num_workers=1`` to fall back to the
     original single-process evaluation (useful for debugging).
+
+    ``schedule_sampler`` is an optional zero-argument callable invoked once per
+    *genome* (in the worker that evaluates it) to produce that genome's own
+    deployment schedule, applied to the env via ``set_training_schedule``. Each
+    genome is therefore evaluated on its own independently sampled deployments
+    (the same scheme as the Adaptive ES runner). When None, genomes use whatever
+    schedule the env already holds.
     """
     trials = num_deployments
 
@@ -188,13 +228,15 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deploy
 
         # Parallel path: ParallelEvaluator fans genomes out across a process
         # pool, assigning the returned value to each genome's fitness. The
-        # per-genome work (and the constant substrate/params/max_steps/trials)
-        # is bound via functools.partial so the callable stays picklable.
+        # per-genome work (and the constant substrate/params/max_steps/trials,
+        # plus schedule_sampler) is bound via functools.partial so the callable
+        # stays picklable; the sampler is invoked fresh for each genome.
         evaluator = neat.ParallelEvaluator(
             num_workers,
             functools.partial(_eval_adaptive_des_genome_worker,
                               substrate=substrate, params=params,
-                              max_steps=max_steps, trials=trials),
+                              max_steps=max_steps, trials=trials,
+                              schedule_sampler=schedule_sampler),
             initializer=_init_adaptive_des_worker,
             initargs=(env_factory,),
         )
@@ -203,7 +245,7 @@ def run_adaptive_des(gens, env, max_steps, config, params, substrate, num_deploy
         def eval_fitness(genomes, config):
             for _, g in genomes:
                 g.fitness = _eval_adaptive_des_genome(
-                    g, config, substrate, params, max_steps, trials, env)
+                    g, config, substrate, params, max_steps, trials, env, schedule_sampler)
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()
@@ -369,7 +411,7 @@ def run_es(gens, env, max_steps, config, params, substrate, max_trials=100, outp
     return winner_hundred, (stats_one, stats_ten, stats_hundred)
 
 def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deployments=10,
-                     max_trials=0, output=True, num_workers=None):
+                     max_trials=0, output=True, num_workers=None, schedule_sampler=None):
     """
     Generic OpenAI Gym runner for Adaptive ES-HyperNEAT.
 
@@ -377,6 +419,12 @@ def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deploym
     ParallelEvaluator. ``num_workers`` controls the size of the process pool and
     defaults to ``os.cpu_count()``. Pass ``num_workers=1`` to fall back to the
     original single-process evaluation (useful for debugging).
+
+    ``schedule_sampler`` is an optional zero-argument callable invoked once per
+    *genome* (in the worker that evaluates it) to produce that genome's own
+    deployment schedule, applied to the env via ``set_training_schedule``. This
+    differs from the DES runner, which shares one sampled schedule across a whole
+    generation. When None, genomes use whatever schedule the env already holds.
     """
     trials = num_deployments
 
@@ -406,7 +454,8 @@ def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deploym
             num_workers,
             functools.partial(_eval_adaptive_es_genome_worker,
                               substrate=substrate, params=params,
-                              max_steps=max_steps, trials=trials),
+                              max_steps=max_steps, trials=trials,
+                              schedule_sampler=schedule_sampler),
             initializer=_init_adaptive_des_worker,
             initargs=(env_factory,),
         )
@@ -415,7 +464,7 @@ def run_adaptive_es(gens, env, max_steps, config, params, substrate, num_deploym
         def eval_fitness(genomes, config):
             for _, g in genomes:
                 g.fitness = _eval_adaptive_es_genome(
-                    g, config, substrate, params, max_steps, trials, env)
+                    g, config, substrate, params, max_steps, trials, env, schedule_sampler)
 
     # Create population and train the network. Return winner of network running 100 episodes.
     stats_one = neat.statistics.StatisticsReporter()

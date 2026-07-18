@@ -28,6 +28,10 @@ class RunRecord:
     excitatory_count: int               # # std connections with A*n > 0
     cppn_connection_count: int
     num_branches: int = None            # # branches (Adaptive DES only; None for ES)
+    # Post-evolution test means (see multi_t_maze). None until measured.
+    all_switch_fitness: float = None       # Test 1: mean over all training-range single-switch schedules
+    double_switch_fitness: float = None    # Test 2: mean over the double-switch generalization deployments
+    delayed_feedback_fitness: float = None  # Test 3: mean over the delayed-feedback deployments
 
     @property
     def connection_ratio(self):
@@ -110,6 +114,21 @@ def write_run_report(path, record, max_generations, title):
 
         f.write(f"Generations to reach fitness threshold: {record.generations_to_solution}\n\n")
 
+        if (record.all_switch_fitness is not None
+                or record.double_switch_fitness is not None
+                or record.delayed_feedback_fitness is not None):
+            f.write("Post-evolution tests (mean fitness per deployment; not seen in training):\n")
+            if record.all_switch_fitness is not None:
+                f.write(f"  Test 1 -- all training-range single-switch schedules: "
+                        f"{record.all_switch_fitness:.6f}\n")
+            if record.double_switch_fitness is not None:
+                f.write(f"  Test 2 -- double-switch generalization (20 episodes): "
+                        f"{record.double_switch_fitness:.6f}\n")
+            if record.delayed_feedback_fitness is not None:
+                f.write(f"  Test 3 -- delayed reward feedback: "
+                        f"{record.delayed_feedback_fitness:.6f}\n")
+            f.write("\n")
+
         f.write("Excitatory/inhibitory analysis (sign of A*n per standard connection):\n")
         f.write(f"  Inhibition/excitation ratio (mean of A*n over standard connections): "
                 f"{record.mean_an_product:.6f}\n")
@@ -185,6 +204,19 @@ def write_summary(graph_path, text_path, records, total_runs, max_generations, t
     branch_counts = [r.num_branches for r in records if r.num_branches is not None]
     branch_mean = _stats.mean(branch_counts) if branch_counts else None
 
+    def test_stats(attr):
+        """(mean, std dev) of a post-evolution test metric over the runs that have it."""
+        values = [getattr(r, attr) for r in records if getattr(r, attr) is not None]
+        if not values:
+            return None, 0.0
+        return _stats.mean(values), (_stats.stdev(values) if len(values) > 1 else 0.0)
+
+    test_summaries = [
+        ("Test 1 -- all training-range single-switch schedules", "all_switch_fitness"),
+        ("Test 2 -- double-switch generalization (20 episodes)", "double_switch_fitness"),
+        ("Test 3 -- delayed reward feedback", "delayed_feedback_fitness"),
+    ]
+
     os.makedirs(os.path.dirname(text_path), exist_ok=True)
     with open(text_path, "w", encoding="utf-8") as f:
         f.write(f"{title} — summary over successful runs\n")
@@ -195,6 +227,21 @@ def write_summary(graph_path, text_path, records, total_runs, max_generations, t
         f.write("Generations to find a solution:\n")
         f.write(f"  mean    = {gens_mean:.4f}\n")
         f.write(f"  std dev = {gens_std:.4f}\n\n")
+
+        written_any_test = False
+        for label, attr in test_summaries:
+            mean_v, std_v = test_stats(attr)
+            if mean_v is None:
+                continue
+            if not written_any_test:
+                f.write("Post-evolution test fitness (per-run mean over that test's "
+                        "deployments; never seen in training):\n")
+                written_any_test = True
+            f.write(f"  {label}:\n")
+            f.write(f"    mean    = {mean_v:.4f}\n")
+            f.write(f"    std dev = {std_v:.4f}\n")
+        if written_any_test:
+            f.write("\n")
 
         f.write("Run-averaged excitatory/inhibitory analysis:\n")
         f.write(f"  inhibition/excitation ratio (mean of per-run mean A*n): {an_ratio_mean:.6f}\n")
